@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: sparta-challenge-8282
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/delivery}
+    username: ${DB_USERNAME:delivery}
+    password: ${DB_PASSWORD:delivery}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
