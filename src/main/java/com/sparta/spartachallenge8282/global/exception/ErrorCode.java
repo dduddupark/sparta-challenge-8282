@@ -14,11 +14,11 @@ import org.springframework.http.HttpStatus;
  * 20001 ~ 29999 : Store
  * 30001 ~ 30999 : Category
  * 31001 ~ 31999 : Region
- * 32001 ~ 32999 : Menu
- * 40001 ~ 49999 : Order
- * 50001 ~ 59999 : Payment
- * 60001 ~ 69999 : AI
- * 61001 ~ 61999 : Review
+ * 40001 ~ 59999 : Menu
+ * 50001 ~ 59999 : Order
+ * 60001 ~ 69999 : Payment
+ * 70001 ~ 79999 : AI
+ * 80001 ~ 89999 : Review
  * 90001 ~       : Common
  * 99999         : Internal Server Error
  * </pre>
@@ -56,26 +56,26 @@ public enum ErrorCode {
     // ── Region (31001 ~ ) ────────────────────────────────────────────────
     REGION_NOT_FOUND(31001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
 
-    // ── Menu (32001 ~ ) ────────────────────────────────────────────────
+    // ── Menu (40001 ~ ) ────────────────────────────────────────────────
     MENU_NOT_FOUND(32001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
 
 
-    // ── Order (40001 ~ 49999) ─────────────────────────────────────────────────
+    // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
     ORDER_NOT_FOUND(50001, HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."),
     INVALID_ORDER_STATUS(50002, HttpStatus.BAD_REQUEST, "유효하지 않은 주문 상태 전이입니다."),
     ORDER_CANCEL_NOT_ALLOWED(50003, HttpStatus.BAD_REQUEST, "주문 접수 후 5분이 지나 취소할 수 없습니다."),
     MINIMUM_ORDER_AMOUNT_NOT_MET(50004, HttpStatus.BAD_REQUEST, "최소 주문 금액을 충족하지 못했습니다."),
 
 
-    // ── Payment (50001 ~ 59999) ───────────────────────────────────────────────
+    // ── Payment (60001 ~ 69999) ───────────────────────────────────────────────
     PAYMENT_NOT_FOUND(60001, HttpStatus.NOT_FOUND, "결제 정보를 찾을 수 없습니다."),
     PAYMENT_FAILED(60002, HttpStatus.BAD_REQUEST, "결제에 실패했습니다."),
 
 
-    // ── AI (60001 ~ ) ────────────────────────────────────────────────────
+    // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────
     AI_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "AI API 호출 중 오류가 발생했습니다."),
 
-    // ── REVIEW (61001 ~ ) ────────────────────────────────────────────────────
+    // ── REVIEW (80001 ~ 89999) ────────────────────────────────────────────────────
     REVIEW_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "REVIEW API 호출 중 오류가 발생했습니다."),
 
 
