@@ -23,14 +23,15 @@ public class Region extends BaseEntity {
     private String name;
 
     @Column(nullable = false)
-    private Integer sortOrder;
+    private int sortOrder;
 
     @Column(nullable = false)
-    private Boolean isActive;
+    private boolean isActive;
 
     @Column(nullable = false)
-    private Boolean isServiceAvailable;
+    private boolean isServiceAvailable;
 
+    // 파라미터는 wrapper(Integer/Boolean) — 미입력(null)이면 기본값으로 채우기 위함. 필드는 not-null이라 primitive.
     @Builder
     public Region(String name, Integer sortOrder, Boolean isActive, Boolean isServiceAvailable) {
         this.name = name;
