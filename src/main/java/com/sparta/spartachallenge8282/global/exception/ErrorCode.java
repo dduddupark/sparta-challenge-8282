@@ -11,13 +11,15 @@ import org.springframework.http.HttpStatus;
  * <pre>
  * 10001 ~ 10099 : Auth     (인증/토큰 관련)
  * 10101 ~ 10199 : User     (회원 도메인)
- * 20001 ~ 20099 : Region
- * 21001 ~ 21099 : Category
- * 30001 ~ 30099 : Store
- * 40001 ~ 40099 : Product
- * 50001 ~ 50099 : Order
- * 60001 ~ 60099 : Payment
- * 70001 ~ 70099 : AI
+ * 20001 ~ 29999 : Store
+ * 30001 ~ 30999 : Category
+ * 31001 ~ 31999 : Region
+ * 32001 ~ 32999 : Menu
+ * 40001 ~ 49999 : Product
+ * 50001 ~ 59999 : Order
+ * 50001 ~ 69999 : Payment
+ * 70001 ~ 79999 : AI
+ * 71001 ~ 71999 : Review
  * 90001 ~       : Common
  * 99999         : Internal Server Error
  * </pre>
@@ -43,32 +45,46 @@ public enum ErrorCode {
     INVALID_SIGNUP_ROLE(10105, HttpStatus.BAD_REQUEST, "회원가입 시 CUSTOMER 또는 OWNER만 선택 가능합니다."),
     ALREADY_DELETED_USER(10106, HttpStatus.BAD_REQUEST, "이미 탈퇴한 회원입니다."),
 
-    // ── Region (20001 ~ 20099) ────────────────────────────────────────────────
-    REGION_NOT_FOUND(20001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
 
-    // ── Category (21001 ~ 21099) ──────────────────────────────────────────────
-    CATEGORY_NOT_FOUND(21001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────
+    STORE_NOT_FOUND(20001, HttpStatus.NOT_FOUND, "가게를 찾을 수 없습니다."),
+    STORE_CLOSED(20002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
 
-    // ── Store (30001 ~ 30099) ─────────────────────────────────────────────────
-    STORE_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "가게를 찾을 수 없습니다."),
-    STORE_CLOSED(30002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
 
-    // ── Product (40001 ~ 40099) ───────────────────────────────────────────────
+    // ── Category (30001 ~ ) ──────────────────────────────────────────────
+    CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+
+    // ── Region (31001 ~ ) ────────────────────────────────────────────────
+    REGION_NOT_FOUND(31001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
+
+    // ── Menu (32001 ~ ) ────────────────────────────────────────────────
+    MENU_NOT_FOUND(32001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
+
+
+    // ── Product (40001 ~ 49999) ───────────────────────────────────────────────
     PRODUCT_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."),
     PRODUCT_UNAVAILABLE(40002, HttpStatus.BAD_REQUEST, "주문할 수 없는 상품입니다."),
 
-    // ── Order (50001 ~ 50099) ─────────────────────────────────────────────────
+
+    // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
     ORDER_NOT_FOUND(50001, HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."),
     INVALID_ORDER_STATUS(50002, HttpStatus.BAD_REQUEST, "유효하지 않은 주문 상태 전이입니다."),
     ORDER_CANCEL_NOT_ALLOWED(50003, HttpStatus.BAD_REQUEST, "주문 접수 후 5분이 지나 취소할 수 없습니다."),
     MINIMUM_ORDER_AMOUNT_NOT_MET(50004, HttpStatus.BAD_REQUEST, "최소 주문 금액을 충족하지 못했습니다."),
 
+
     // ── Payment (60001 ~ 60099) ───────────────────────────────────────────────
     PAYMENT_NOT_FOUND(60001, HttpStatus.NOT_FOUND, "결제 정보를 찾을 수 없습니다."),
     PAYMENT_FAILED(60002, HttpStatus.BAD_REQUEST, "결제에 실패했습니다."),
 
-    // ── AI (70001 ~ 70099) ────────────────────────────────────────────────────
+
+    // ── AI (70001 ~ ) ────────────────────────────────────────────────────
     AI_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "AI API 호출 중 오류가 발생했습니다."),
+
+    // ── REVIEW (71001 ~ ) ────────────────────────────────────────────────────
+    REVIEW_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "REVIEW API 호출 중 오류가 발생했습니다."),
+
+
 
     // ── Common (90001 ~) ──────────────────────────────────────────────────────
     INVALID_INPUT(90001, HttpStatus.BAD_REQUEST, "잘못된 입력입니다."),
