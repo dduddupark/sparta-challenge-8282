@@ -35,7 +35,7 @@ public class AuthEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
-        ApiResponse<?> body = ApiResponse.error(ErrorCode.UNAUTHORIZED.getMessage());
+        ApiResponse<?> body = ApiResponse.error(ErrorCode.UNAUTHORIZED.getCode(), ErrorCode.UNAUTHORIZED.getMessage());
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

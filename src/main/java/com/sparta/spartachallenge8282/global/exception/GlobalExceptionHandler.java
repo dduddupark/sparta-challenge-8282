@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
         log.warn("[CustomException] {} - {}", errorCode.name(), errorCode.getMessage());
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.getMessage()));
+                .body(ApiResponse.error(errorCode.getCode(), errorCode.getMessage()));
     }
 
     /**
@@ -50,7 +50,7 @@ public class GlobalExceptionHandler {
         log.warn("[ValidationException] {}", errorMessage);
         return ResponseEntity
                 .badRequest()
-                .body(ApiResponse.error(errorMessage));
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), errorMessage));
     }
 
     /**
@@ -62,6 +62,6 @@ public class GlobalExceptionHandler {
         log.error("[UnhandledException] {}", e.getMessage(), e);
         return ResponseEntity
                 .internalServerError()
-                .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getMessage()));
+                .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getCode(), ErrorCode.INTERNAL_ERROR.getMessage()));
     }
 }
