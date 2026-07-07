@@ -70,6 +70,13 @@ public enum ErrorCode {
     // ── Payment (60001 ~ 69999) ───────────────────────────────────────────────
     PAYMENT_NOT_FOUND(60001, HttpStatus.NOT_FOUND, "결제 정보를 찾을 수 없습니다."),
     PAYMENT_FAILED(60002, HttpStatus.BAD_REQUEST, "결제에 실패했습니다."),
+    INVALID_PAYMENT_REQUEST(60003, HttpStatus.BAD_REQUEST, "잘못된 결제 요청입니다."),
+    PAYMENT_ORDER_NOT_FOUND(60004, HttpStatus.NOT_FOUND, "결제 대상 주문을 찾을 수 없습니다."),
+    PAYMENT_ALREADY_PROCESSED(60005, HttpStatus.CONFLICT, "이미 결제 완료된 주문입니다."),
+    PAYMENT_AMOUNT_MISMATCH(60006, HttpStatus.BAD_REQUEST, "요청 금액과 주문 금액이 일치하지 않습니다."),
+    PAYMENT_NOT_CANCELABLE(60007, HttpStatus.CONFLICT, "취소할 수 없는 결제 상태입니다."),
+    PAYMENT_NOT_REFUNDABLE(60008, HttpStatus.CONFLICT, "환불할 수 없는 결제 상태입니다."),
+    PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────
