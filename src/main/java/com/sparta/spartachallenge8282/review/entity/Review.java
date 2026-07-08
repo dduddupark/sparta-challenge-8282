@@ -19,8 +19,7 @@ public class Review extends BaseEntity {
 
     // 리뷰 ID
     @Id
-    @GeneratedValue
-    @UuidGenerator
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     // 주문 ID
