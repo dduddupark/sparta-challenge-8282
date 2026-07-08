@@ -47,7 +47,9 @@ public class RegionService {
     }
 
     public Page<RegionResponse> getRegionList(String keyword, Boolean isActive, Pageable pageable) {
-        return regionRepository.searchRegions(keyword, isActive, pageable)
+        String searchKeyword = (keyword == null) ? "" : keyword;   // keyword가 없으면 LIKE '%%'로 전체 조회되도록 빈 문자열로 넘긴다.
+
+        return regionRepository.searchRegions(searchKeyword, isActive, pageable)
                 .map(RegionResponse::from);
     }
 
