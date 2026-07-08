@@ -3,11 +3,14 @@ package com.sparta.spartachallenge8282.order.controller;
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderCreateResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
 import com.sparta.spartachallenge8282.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 /**
  * 주문 API Controller
@@ -35,6 +38,23 @@ public class OrderController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("주문 생성 성공", response)
+        );
+    }
+
+    /**
+     * 주문 단건 조회
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<ApiResponse<OrderDetailResponseDto>> getOrder(
+            @PathVariable UUID orderId
+    ) {
+        OrderDetailResponseDto response = orderService.getOrder(
+                TEMP_CUSTOMER_ID,
+                orderId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("주문 단건 조회 성공", response)
         );
     }
 }
