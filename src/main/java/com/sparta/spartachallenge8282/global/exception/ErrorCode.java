@@ -40,9 +40,10 @@ public enum ErrorCode {
     USER_NOT_FOUND(10101, HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
     DUPLICATE_USERNAME(10102, HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다."),
     DUPLICATE_EMAIL(10103, HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
-    INVALID_PASSWORD(10104, HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+    INVALID_PASSWORD(10104, HttpStatus.BAD_REQUEST, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_SIGNUP_ROLE(10105, HttpStatus.BAD_REQUEST, "회원가입 시 CUSTOMER 또는 OWNER만 선택 가능합니다."),
     ALREADY_DELETED_USER(10106, HttpStatus.BAD_REQUEST, "이미 탈퇴한 회원입니다."),
+    DUPLICATE_PASSWORD(10107, HttpStatus.BAD_REQUEST, "현재 비밀번호와 동일한 비밀번호로 변경할 수 없습니다."),
 
 
     // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────

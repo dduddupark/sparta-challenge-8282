@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.user.domain;
+package com.sparta.spartachallenge8282.user.entity;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
 import jakarta.persistence.*;
@@ -8,12 +8,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 사용자 엔티티.
- *
- * <p>이메일 중복 제약 조건:
- * 소프트 딜리트(재가입 허용) 구조를 위해 JPA 레벨의 unique = true 제약 조건을 제거하고,
- * DB 단에 {@code CREATE UNIQUE INDEX uq_user_email ON p_user (email) WHERE (deleted_at IS NULL)}
- * 형식의 부분 고유 인덱스(Partial Unique Index) 설정을 권장한다.
+ * 사용자 엔티티
+ * <p>
+ * 소프트 딜리트를 지원하기 위해 JPA의 unique 제약은 사용하지 않는다.
+ * PostgreSQL에서는 반드시 Partial Unique Index
+ * (email WHERE deleted_at IS NULL)를 생성해야 한다.
  */
 @Entity
 @Table(name = "p_user")

@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.user.presentation.dto.response;
+package com.sparta.spartachallenge8282.user.dto.response;
 
 public record LoginResponse(
         String accessToken,

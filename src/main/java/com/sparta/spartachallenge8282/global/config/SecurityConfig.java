@@ -3,7 +3,7 @@ package com.sparta.spartachallenge8282.global.config;
 import com.sparta.spartachallenge8282.global.security.AuthEntryPoint;
 import com.sparta.spartachallenge8282.global.security.JwtAuthFilter;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
-import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

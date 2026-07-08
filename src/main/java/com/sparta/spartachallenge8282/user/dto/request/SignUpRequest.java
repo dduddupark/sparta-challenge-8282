@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.user.presentation.dto.request;
+package com.sparta.spartachallenge8282.user.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
