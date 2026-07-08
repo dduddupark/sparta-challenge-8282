@@ -54,6 +54,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Spring Security 인가 실패(Access Denied) 처리.
+     * @PreAuthorize 등급 권한 위반 시 10005(ACCESS_DENIED) 공통 에러를 응답한다.
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<?>> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException e) {
+        log.warn("[AccessDeniedException] 접근 권한 거부 - {}", e.getMessage());
+        return ResponseEntity
+                .status(org.springframework.http.HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), ErrorCode.ACCESS_DENIED.getMessage()));
+    }
+
+    /**
      * 처리되지 않은 모든 예외 처리.
      * 서버 내부 오류로 간주하고 상세 메시지는 노출하지 않는다.
      */
