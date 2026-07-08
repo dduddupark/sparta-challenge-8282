@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -74,7 +73,7 @@ public class RegionService {
 
     @Transactional
     public LocalDateTime deleteRegion(UUID id, Long userId) {
-        Region region = regionRepository.findById(id)
+        Region region = regionRepository.findById(id)   // 이미 삭제된 지역과 존재하지 않는 지역을 구분하기 위해 삭제 포함 조회
                 .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_FOUND));
 
         if (region.isDeleted()) {

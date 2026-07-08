@@ -1,11 +1,11 @@
 package com.sparta.spartachallenge8282.region.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
+import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.region.application.RegionService;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionUpdateRequest;
-import com.sparta.spartachallenge8282.region.presentation.dto.response.PageResponse;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionCreateResponse;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionDeleteResponse;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
