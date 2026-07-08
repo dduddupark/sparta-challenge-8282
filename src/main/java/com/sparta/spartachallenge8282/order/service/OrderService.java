@@ -3,6 +3,8 @@ package com.sparta.spartachallenge8282.order.service;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderItemResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderListResponseDto;
 import com.sparta.spartachallenge8282.order.entity.Order;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -103,5 +106,31 @@ public class OrderService {
         if (!order.getUserId().equals(userId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
+    }
+
+    // 주문 상품 목록 조회
+    @Transactional(readOnly = true)
+    public List<OrderItemResponseDto> getOrderItems(
+            Long userId,
+            UUID orderId
+    ) {
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        validateOrderOwner(order, userId);
+
+        return order.getOrderItems()
+                .stream()
+                .map(OrderItemResponseDto::from)
+                .toList();
+    }
+
+    // 주문 목록 조회
+    @Transactional(readOnly = true)
+    public List<OrderListResponseDto> getOrders(Long userId) {
+        return orderRepository.findAllByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(OrderListResponseDto::from)
+                .toList();
     }
 }

@@ -4,12 +4,15 @@ import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderCreateResponseDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderItemResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderListResponseDto;
 import com.sparta.spartachallenge8282.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -41,7 +44,7 @@ public class OrderController {
         );
     }
 
-    /**
+    /*
      * 주문 단건 조회
      */
     @GetMapping("/{orderId}")
@@ -57,4 +60,33 @@ public class OrderController {
                 ApiResponse.success("주문 단건 조회 성공", response)
         );
     }
+
+    /*
+     * 주문 상품 목록 조회
+     */
+    @GetMapping("/{orderId}/items")
+    public ResponseEntity<ApiResponse<List<OrderItemResponseDto>>> getOrderItems(
+            @PathVariable UUID orderId
+    ) {
+        List<OrderItemResponseDto> response = orderService.getOrderItems(
+                TEMP_CUSTOMER_ID,
+                orderId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("주문 상품 목록 조회 성공", response)
+        );
+    }
+
+    // 주문 목록 조회
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<OrderListResponseDto>>> getOrders() {
+        List<OrderListResponseDto> response = orderService.getOrders(TEMP_CUSTOMER_ID);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("주문 목록 조회 성공", response)
+        );
+    }
+
+
 }
