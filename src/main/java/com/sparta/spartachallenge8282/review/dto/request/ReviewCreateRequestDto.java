@@ -1,12 +1,9 @@
-package com.sparta.spartachallenge8282.review.dto;
+package com.sparta.spartachallenge8282.review.dto.request;
 
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
@@ -15,7 +12,7 @@ import java.util.UUID;
 * 주문과 평점을 Not Null로 받음.
 * */
 
-public record ReqCreateReviewDto (
+public record ReviewCreateRequestDto(
         @NotNull(message = "주문 ID는 필수입니다.")
         UUID orderId,
 

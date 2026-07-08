@@ -1,8 +1,6 @@
-package com.sparta.spartachallenge8282.review.dto;
+package com.sparta.spartachallenge8282.review.dto.response;
 
 import com.sparta.spartachallenge8282.review.entity.Review;
-import lombok.Builder;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,7 +10,7 @@ import java.util.UUID;
  * 리뷰에 필요한 데이터
  * */
 
-public record ResReviewDto (
+public record ReviewResponseDto(
 
         UUID reviewId,
         UUID storeId,
@@ -22,8 +20,8 @@ public record ResReviewDto (
         LocalDateTime createdAt
 ) {
 
-    public static ResReviewDto from(Review review) {
-        return new ResReviewDto(
+    public static ReviewResponseDto from(Review review) {
+        return new ReviewResponseDto(
                 review.getId(),
                 review.getStoreId(),
                 review.getRating(),

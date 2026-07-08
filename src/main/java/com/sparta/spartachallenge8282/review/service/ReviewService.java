@@ -2,7 +2,11 @@ package com.sparta.spartachallenge8282.review.service;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
-import com.sparta.spartachallenge8282.review.dto.*;
+import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
+import com.sparta.spartachallenge8282.review.dto.request.ReviewUpdateRequestDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewResponseDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewResultResponseDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.entity.Review;
 import com.sparta.spartachallenge8282.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,36 +24,36 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
 
     @Transactional
-    public ResReviewResultDto createReview(ReqCreateReviewDto requestDto, Long userId, UUID storeId) {
+    public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId, UUID storeId) {
         Review review = Review.builder()
                 .requestDto(requestDto)
                 .userId(userId)
                 .storeId(storeId)
                 .build();
 
-        return ResReviewResultDto.from(reviewRepository.save(review).getId());
+        return ReviewResultResponseDto.from(reviewRepository.save(review).getId());
     }
 
     @Transactional(readOnly = true)
-    public ResReviewSliceDto getReviewsByStore(UUID storeId, Pageable pageable) {
+    public ReviewSliceResponseDto getReviewsByStore(UUID storeId, Pageable pageable) {
 
         // TODO: Store 완성되면 존재하는 가게인지 검증 추가 (STORE_NOT_FOUND)
 
         Slice<Review> slice = reviewRepository.findByStoreIdAndDeletedAtIsNull(storeId, pageable);
-        return ResReviewSliceDto.from(slice);
+        return ReviewSliceResponseDto.from(slice);
     }
 
     @Transactional(readOnly = true)
-    public ResReviewDto getReview(UUID reviewId) {
+    public ReviewResponseDto getReview(UUID reviewId) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));// TODO: REVIEW_NOT_FOUND(80006)
 
-        return ResReviewDto.from(review);
+        return ReviewResponseDto.from(review);
     }
 
     @Transactional
-    public ResReviewResultDto updateReview(UUID reviewId, Long userId, ReqUpdateReviewDto requestDto) {
+    public ReviewResultResponseDto updateReview(UUID reviewId, Long userId, ReviewUpdateRequestDto requestDto) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND)); // TODO: REVIEW_NOT_FOUND(80006)
@@ -60,7 +64,7 @@ public class ReviewService {
 
         review.update(requestDto.getRating(), requestDto.getContent(), requestDto.getImageUrl());
 
-        return ResReviewResultDto.from(review.getId());
+        return ReviewResultResponseDto.from(review.getId());
     }
 
     @Transactional

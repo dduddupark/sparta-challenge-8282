@@ -1,9 +1,7 @@
-package com.sparta.spartachallenge8282.review.dto;
+package com.sparta.spartachallenge8282.review.dto.response;
 
 
 import com.sparta.spartachallenge8282.review.entity.Review;
-import lombok.Builder;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -13,7 +11,7 @@ import java.util.UUID;
  * 리뷰 목록을 조회
  * */
 
-public record ResReviewListItemDto (
+public record ReviewListItemResponseDto(
         UUID reviewId,
         String userNickname,
         Integer rating,
@@ -25,8 +23,8 @@ public record ResReviewListItemDto (
 
 
 
-    public static ResReviewListItemDto from(Review review) {
-        return new ResReviewListItemDto(
+    public static ReviewListItemResponseDto from(Review review) {
+        return new ReviewListItemResponseDto(
                 review.getId(),
                 null,
                 review.getRating(),

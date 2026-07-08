@@ -1,13 +1,12 @@
 package com.sparta.spartachallenge8282.review.entity;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
-import com.sparta.spartachallenge8282.review.dto.ReqCreateReviewDto;
+import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.util.UUID;
 
@@ -45,7 +44,7 @@ public class Review extends BaseEntity {
     private String imageUrl;
 
     @Builder
-    private Review(ReqCreateReviewDto requestDto, Long userId, UUID storeId) {
+    private Review(ReviewCreateRequestDto requestDto, Long userId, UUID storeId) {
         this.orderId = requestDto.orderId();
         this.userId = userId;
         this.storeId = storeId;

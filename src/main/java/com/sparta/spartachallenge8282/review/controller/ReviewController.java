@@ -2,7 +2,11 @@ package com.sparta.spartachallenge8282.review.controller;
 
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
-import com.sparta.spartachallenge8282.review.dto.*;
+import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
+import com.sparta.spartachallenge8282.review.dto.request.ReviewUpdateRequestDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewResponseDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewResultResponseDto;
+import com.sparta.spartachallenge8282.review.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,11 +28,11 @@ public class ReviewController {
 
     // 리뷰 작성
     @PostMapping("/reviews")
-    public ResponseEntity<ApiResponse<ResReviewResultDto>> createReview(
+    public ResponseEntity<ApiResponse<ReviewResultResponseDto>> createReview(
             @RequestParam Long userId, // TODO: JWT 완성되면 @AuthenticationPrincipal로 교체
             @RequestParam UUID storeId,
-            @Valid @RequestBody ReqCreateReviewDto dto) {
-        ResReviewResultDto response = reviewService.createReview(dto, userId, storeId);
+            @Valid @RequestBody ReviewCreateRequestDto dto) {
+        ReviewResultResponseDto response = reviewService.createReview(dto, userId, storeId);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -37,33 +41,33 @@ public class ReviewController {
 
     // 특정 가게의 리뷰 목록 조회 (페이징)
     @GetMapping("/stores/{storeId}/reviews")
-    public ResponseEntity<ApiResponse<ResReviewSliceDto>> getReviewsByStore(
+    public ResponseEntity<ApiResponse<ReviewSliceResponseDto>> getReviewsByStore(
             @PathVariable UUID storeId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        ResReviewSliceDto response = reviewService.getReviewsByStore(storeId, pageable);
+        ReviewSliceResponseDto response = reviewService.getReviewsByStore(storeId, pageable);
 
         return ResponseEntity.ok(ApiResponse.success("조회 성공", response));
     }
 
     // 리뷰 상세보기
     @GetMapping("/reviews/{reviewId}")
-    public ResponseEntity<ApiResponse<ResReviewDto>> getReview(
+    public ResponseEntity<ApiResponse<ReviewResponseDto>> getReview(
             @PathVariable UUID reviewId) {
 
-        ResReviewDto response = reviewService.getReview(reviewId);
+        ReviewResponseDto response = reviewService.getReview(reviewId);
 
         return ResponseEntity.ok(ApiResponse.success("조회 성공", response));
     }
 
     // 리뷰 수정하기
     @PatchMapping("/reviews/{reviewId}")
-    public ResponseEntity<ApiResponse<ResReviewResultDto>> updateReview(
+    public ResponseEntity<ApiResponse<ReviewResultResponseDto>> updateReview(
             @PathVariable UUID reviewId,
             @RequestParam Long userId, // TODO: JWT 완성되면 @AuthenticationPrincipal로 교체
-            @Valid @RequestBody ReqUpdateReviewDto requestDto) {
+            @Valid @RequestBody ReviewUpdateRequestDto requestDto) {
 
-        ResReviewResultDto response = reviewService.updateReview(reviewId, userId, requestDto);
+        ReviewResultResponseDto response = reviewService.updateReview(reviewId, userId, requestDto);
 
         return ResponseEntity.ok(ApiResponse.success("리뷰가 수정되었습니다.", response));
     }
