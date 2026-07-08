@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +23,10 @@ public class Order extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    // 주문 취소 시간
+    @Column
+    private LocalDateTime canceledAt;
 
     // 영수증에 노출되는 주문 번호
     @Column(nullable = false, unique = true, length = 30)
@@ -137,7 +142,9 @@ public class Order extends BaseEntity {
     }
 
     // 주문 취소 처리
+    // 주문 상태를 CANCELED로 변경하고 취소 시간을 기록
     public void cancel() {
         this.orderStatus = OrderStatus.CANCELED;
+        this.canceledAt = LocalDateTime.now();
     }
 }
