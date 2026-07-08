@@ -7,6 +7,7 @@ import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderItemResponseDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderListResponseDto;
 import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderCreateResponseDto;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -139,5 +141,48 @@ public class OrderService {
                 .map(OrderListResponseDto::from);
 
         return PageResponse.from(orders);
+    }
+
+    //주문 취소
+    /*
+    * todo: 검증 고민 사항들
+    * 1. 가게가 5분이 넘도록 주문을 확인하지 않을 때? -> 자동 취소?
+    * 2. 주문 취소되면서 payment 환불 처리
+    * 3. 가능성이 낮지만, 고객과 가게가 동시에 취소하는 경우..? -> lock?
+     */
+    @Transactional
+    public OrderDetailResponseDto cancelOrder(
+            Long userId,
+            UUID orderId
+    ) {
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        validateOrderOwner(order, userId);
+        validateCancelable(order);
+        validateCancelTimeLimit(order);
+
+        order.cancel();
+
+        return OrderDetailResponseDto.from(order);
+    }
+
+    /*
+     * 주문 취소 가능 상태 검증
+     * 현재는 PENDING 상태에서만 고객 취소 허용
+     */
+    private void validateCancelable(Order order) {
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+    }
+
+    //주문 생성 후 5분 이내 취소 가능 검증
+    private void validateCancelTimeLimit(Order order) {
+        LocalDateTime cancelDeadline = order.getCreatedAt().plusMinutes(5);
+
+        if (LocalDateTime.now().isAfter(cancelDeadline)) {
+            throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
     }
 }
