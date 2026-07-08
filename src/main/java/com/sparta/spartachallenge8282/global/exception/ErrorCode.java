@@ -52,6 +52,9 @@ public enum ErrorCode {
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    DUPLICATE_CATEGORY_NAME(30002, HttpStatus.CONFLICT, "이미 존재하는 카테고리명입니다."),
+    CATEGORY_IN_USE(30003, HttpStatus.CONFLICT, "사용 중인 카테고리는 삭제할 수 없습니다."),
+    ALREADY_DELETED_CATEGORY(30004, HttpStatus.CONFLICT, "이미 삭제된 카테고리입니다."),
 
     // ── Region (31001 ~ 31999) ──
     REGION_NOT_FOUND(31001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
