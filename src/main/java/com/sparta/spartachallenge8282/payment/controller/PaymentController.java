@@ -127,7 +127,7 @@ public class PaymentController {
             @AuthenticationPrincipal UserDetailsImpl user,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<PaymentResponse> page = paymentService.getMyPayments(user.getUserId(), pageable);
+        Page<PaymentResponse> page = paymentService.getMyPayments(user, pageable);
         return ApiResponse.success("내 결제 목록 조회 성공", PageResponse.from(page));
     }
 }

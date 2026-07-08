@@ -48,6 +48,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
 
     // 롤 문자열 (UserDetailsImpl.getRole() 원문 — ROLE_ 접두사 없음 가정)
+    //TODO User Enum 있으면 교체해줘야함
     private static final String ROLE_CUSTOMER = "CUSTOMER";
     private static final String ROLE_OWNER    = "OWNER";
     private static final String ROLE_MANAGER  = "MANAGER";
@@ -121,7 +122,7 @@ public class PaymentService {
     @Transactional
     public PaymentCancelResponse cancelPayment(UUID paymentId, PaymentCancelRequest request, UserDetailsImpl user) {
         Payment payment = findActivePayment(paymentId);
-        // TODO: OWNER 본인 가게 결제인지 검증 (Store 도메인 확정 후)
+        validateCancelAccess(payment, user); // OWNER/MANAGER/MASTER 만 (OWNER 가게 스코프는 TODO)
 
         if (payment.getStatus() != PaymentStatus.PAID) {
             throw new CustomException(ErrorCode.PAYMENT_NOT_CANCELABLE); // 60007
@@ -152,9 +153,9 @@ public class PaymentService {
                 .map(PaymentResponse::from);
     }
 
-    /** 고객 본인 결제 목록 조회. */
-    public Page<PaymentResponse> getMyPayments(Long userId, Pageable pageable) {
-        return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(userId, pageable)
+    /** 고객 본인 결제 목록 조회. (userId 는 인증 주체에서 도출 — 타인 조회 불가) */
+    public Page<PaymentResponse> getMyPayments(UserDetailsImpl user, Pageable pageable) {
+        return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(user.getUserId(), pageable)
                 .map(PaymentResponse::from);
     }
 
@@ -177,6 +178,22 @@ public class PaymentService {
         }
         if (ROLE_CUSTOMER.equals(role)) {
             validateOrderOwner(payment, user);
+            return;
+        }
+        throw new CustomException(ErrorCode.ACCESS_DENIED);
+    }
+
+    /**
+     * 결제 취소 동작의 권한 검증.
+     * 명세상 취소 주체는 OWNER(및 MANAGER/MASTER). CUSTOMER 등 그 외 롤은 거부한다.
+     */
+    private void validateCancelAccess(Payment payment, UserDetailsImpl user) {
+        String role = user.getRole();
+        if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role)) {
+            return;
+        }
+        if (ROLE_OWNER.equals(role)) {
+            // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
             return;
         }
         throw new CustomException(ErrorCode.ACCESS_DENIED);
