@@ -42,12 +42,11 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
-            "/api/v1/auth/reissue", // 토큰 재발급은 필터를 거치지 않거나 통과시킨다
+            "/api/v1/auth/reissue",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            // User 로그인 기능 구현 전 주문 생성 테스트를 위한 임시 허용
-            "/api/v1/orders",
+            "/api/v1/test/**"  // ⚠️ 개발 전용 - 제출 전 반드시 제거
     };
 
     @Bean
