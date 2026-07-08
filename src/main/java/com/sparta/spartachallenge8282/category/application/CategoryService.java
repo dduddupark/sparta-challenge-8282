@@ -1,9 +1,12 @@
 package com.sparta.spartachallenge8282.category.application;
 
+import com.sparta.spartachallenge8282.category.domain.Category;
 import com.sparta.spartachallenge8282.category.domain.CategoryRepository;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryCreateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryUpdateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryResponse;
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,24 +30,63 @@ public class CategoryService {
 
     @Transactional
     public UUID createCategory(CategoryCreateRequest request) {
-        throw new UnsupportedOperationException("TODO: createCategory 구현");
+        if(categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
+            throw new CustomException((ErrorCode.DUPLICATE_CATEGORY_NAME));
+        }
+
+        Category category = Category.builder()
+                .name(request.name())
+                .sortOrder(request.sortOrder())
+                .isActive(request.isActive())
+                .build();
+        Category saved = categoryRepository.save(category);
+
+        return  saved.getId();
     }
 
     public CategoryResponse getCategory(UUID id) {
-        throw new UnsupportedOperationException("TODO: getCategory 구현");
+        Category category = categoryRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
+        return CategoryResponse.from(category);
     }
 
     public Page<CategoryResponse> getCategoryList(String keyword, Boolean isActive, Pageable pageable) {
-        throw new UnsupportedOperationException("TODO: getCategoryList 구현");
+        String searchKeyword = (keyword == null) ? "" : keyword;   // keyword 없으면 LIKE '%%'로 전체 조회
+
+        return categoryRepository.searchCategories(searchKeyword, isActive, pageable)
+                .map(CategoryResponse::from);
     }
 
     @Transactional
     public CategoryResponse updateCategory(UUID id, CategoryUpdateRequest request) {
-        throw new UnsupportedOperationException("TODO: updateCategory 구현");
+        Category category = categoryRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        if (request.name() != null
+                && !request.name().equals(category.getName())
+                && categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
+            throw new CustomException(ErrorCode.DUPLICATE_CATEGORY_NAME);
+        }
+
+        category.updateName(request.name());
+        category.changeSortOrder(request.sortOrder());
+        category.changeActive(request.isActive());
+
+        return CategoryResponse.from(category);
     }
 
     @Transactional
     public LocalDateTime deleteCategory(UUID id, Long userId) {
-        throw new UnsupportedOperationException("TODO: deleteCategory 구현");
+        Category category = categoryRepository.findById(id)   // 이미 삭제된 것과 없는 것을 구분하려 삭제 포함 조회
+                .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        if (category.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_CATEGORY);
+        }
+
+        // TODO: CATEGORY_IN_USE — 이 category 를 참조하는 store 가 있으면 예외 (StoreRepository 필요, Store 머지 후)
+
+        category.softDelete(userId);
+        return category.getDeletedAt();
     }
 }
