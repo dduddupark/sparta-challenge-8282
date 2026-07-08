@@ -1,0 +1,89 @@
+package com.sparta.spartachallenge8282.region.application;
+
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.region.domain.Region;
+import com.sparta.spartachallenge8282.region.domain.RegionRepository;
+import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
+import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionUpdateRequest;
+import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class RegionService {
+
+    private final RegionRepository regionRepository;
+
+    @Transactional
+    public UUID createRegion(RegionCreateRequest request) {
+        if (regionRepository.existsByNameAndDeletedAtIsNull(request.name())) {   // 최종 유니크 보장은 partial unique index(uk_region_name_active)
+            throw new CustomException(ErrorCode.DUPLICATE_REGION_NAME);
+        }
+
+        Region region = Region.builder()
+                .name(request.name())
+                .sortOrder(request.sortOrder())
+                .isActive(request.isActive())
+                .isServiceAvailable(request.isServiceAvailable())
+                .build();
+        Region saved = regionRepository.save(region);
+
+        return saved.getId();
+    }
+
+    public RegionResponse getRegion(UUID id) {
+        Region region = regionRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_FOUND));
+        return RegionResponse.from(region);
+    }
+
+    public Page<RegionResponse> getRegionList(String keyword, Boolean isActive, Pageable pageable) {
+        String searchKeyword = (keyword == null) ? "" : keyword;   // keyword가 없으면 LIKE '%%'로 전체 조회되도록 빈 문자열로 넘긴다.
+
+        return regionRepository.searchRegions(searchKeyword, isActive, pageable)
+                .map(RegionResponse::from);
+    }
+
+    @Transactional
+    public RegionResponse updateRegion(UUID id, RegionUpdateRequest request) {
+        Region region = regionRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_FOUND));
+
+        if (request.name() != null
+                && !request.name().equals(region.getName())
+                && regionRepository.existsByNameAndDeletedAtIsNull(request.name())) {
+            throw new CustomException(ErrorCode.DUPLICATE_REGION_NAME);
+        }
+
+        region.updateName(request.name());
+        region.changeSortOrder(request.sortOrder());
+        region.changeActive(request.isActive());
+        region.changeServiceAvailable(request.isServiceAvailable());
+
+        return RegionResponse.from(region);
+    }
+
+    @Transactional
+    public LocalDateTime deleteRegion(UUID id, Long userId) {
+        Region region = regionRepository.findById(id)   // 이미 삭제된 지역과 존재하지 않는 지역을 구분하기 위해 삭제 포함 조회
+                .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_FOUND));
+
+        if (region.isDeleted()) {
+            throw new CustomException(ErrorCode.ALREADY_DELETED_REGION);
+        }
+
+        // TODO: REGION_IN_USE — 이 region을 참조하는 store가 있으면 예외 (StoreRepository 필요, Store 머지 후)
+
+        region.softDelete(userId);
+        return region.getDeletedAt();
+    }
+
+}
