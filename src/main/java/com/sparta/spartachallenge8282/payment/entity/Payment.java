@@ -1,6 +1,7 @@
 package com.sparta.spartachallenge8282.payment.entity;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
+import com.sparta.spartachallenge8282.order.entity.Order;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -15,8 +16,8 @@ import java.util.UUID;
  * 결제 엔티티 (p_payment).
  *
  * <p>주문(p_order)과 1:1 관계이며 {@code amount} 는 {@code p_order.total_price} 와 항상 동일해야 한다.
- * Order 도메인이 아직 없어 연관관계(@OneToOne) 대신 {@code orderId}(UUID) 컬럼으로 보관한다.
- * (추후 Order 엔티티 확정 시 association 전환 검토)
+ * 현재 {@link Order} 는 임시(placeholder) 엔티티이므로, Order 도메인 정식 구현 후
+ * 필요한 필드/제약을 재검토한다.
  *
  * <p>상태 전이는 {@link #cancel}, {@link #refund}, {@link #fail} 로만 수행한다(무분별한 setter 금지).
  * 전이 가능 여부·권한 검증 등 비즈니스 규칙은 서비스 계층에서 담당한다.
@@ -34,8 +35,7 @@ public class Payment extends BaseEntity {
 
 
 
-    // TODO: Order 도메인 확정 후 아래 JPA 연관관계로 전환하고 위 orderId(UUID) 컬럼은 제거.
-    //       (현재는 Order 엔티티가 없어 컴파일 불가하므로 주석 처리)
+    // NOTE: Order 는 현재 임시(placeholder) 엔티티. 정식 Order 도메인 구현 후 연관관계 재검토.
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false, unique = true)
     private Order order;
