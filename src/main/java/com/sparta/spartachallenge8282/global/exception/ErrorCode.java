@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
  * 20001 ~ 29999 : Store
  * 30001 ~ 30999 : Category
  * 31001 ~ 31999 : Region
- * 40001 ~ 59999 : Menu
+ * 40001 ~ 49999 : Menu
  * 50001 ~ 59999 : Order
  * 60001 ~ 69999 : Payment
  * 70001 ~ 79999 : AI
@@ -50,14 +50,18 @@ public enum ErrorCode {
     STORE_CLOSED(20002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
 
 
-    // ── Category (30001 ~ ) ──────────────────────────────────────────────
+    // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
 
-    // ── Region (31001 ~ ) ────────────────────────────────────────────────
+    // ── Region (31001 ~ 31999) ──
     REGION_NOT_FOUND(31001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
+    DUPLICATE_REGION_NAME(31002, HttpStatus.CONFLICT, "이미 존재하는 지역명입니다."),
+    REGION_IN_USE(31003, HttpStatus.CONFLICT, "사용 중인 지역은 삭제할 수 없습니다."),
+    ALREADY_DELETED_REGION(31004, HttpStatus.CONFLICT, "이미 삭제된 지역입니다."),
+    REGION_NOT_SERVICEABLE(31005, HttpStatus.CONFLICT, "현재 주문 가능한 지역이 아닙니다."),
 
-    // ── Menu (40001 ~ ) ────────────────────────────────────────────────
-    MENU_NOT_FOUND(32001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
+    // ── Menu (40001 ~ 49999) ────────────────────────────────────────────────
+    MENU_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
@@ -80,12 +84,23 @@ public enum ErrorCode {
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────
-    AI_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "AI API 호출 중 오류가 발생했습니다."),
+    PROMPT_TOO_LONG(70001, HttpStatus.BAD_REQUEST, "프롬프트 글자수 제한을 초과했습니다."),
+    NOT_MENU_OWNER(70002, HttpStatus.FORBIDDEN, "본인 메뉴가 아닙니다."),
+    MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
 
-    // ── REVIEW (80001 ~ 89999) ────────────────────────────────────────────────────
-    REVIEW_API_ERROR(70001, HttpStatus.INTERNAL_SERVER_ERROR, "REVIEW API 호출 중 오류가 발생했습니다."),
+    // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
+    INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
+    NOT_DELIVERED(80002, HttpStatus.BAD_REQUEST, "배달완료 상태의 주문만 리뷰를 작성할 수 있습니다."),
+    NOT_ORDER_OWNER(80003, HttpStatus.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다."),
+    ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
+    NOT_REVIEW_OWNER(80005, HttpStatus.FORBIDDEN, "본인이 작성한 리뷰만 수정/삭제할 수 있습니다."),
+    REVIEW_NOT_FOUND(80006, HttpStatus.NOT_FOUND, "존재하지 않는 리뷰입니다."),
 
-
+    // ── REVIEW REPLY (80101 ~ 80199) ──────────────────────────────────────
+    REPLY_TARGET_REVIEW_NOT_FOUND(80101, HttpStatus.NOT_FOUND, "답글을 작성할 리뷰가 존재하지 않습니다."),
+    REPLY_ALREADY_EXISTS(80102, HttpStatus.CONFLICT, "이미 답글이 존재하는 리뷰입니다."),
+    NOT_REPLY_OWNER(80103, HttpStatus.FORBIDDEN, "본인이 작성한 답글만 수정/삭제할 수 있습니다."),
+    REPLY_NOT_FOUND(80104, HttpStatus.NOT_FOUND, "존재하지 않는 답글입니다."),
 
     // ── Common (90001 ~) ──────────────────────────────────────────────────────
     INVALID_INPUT(90001, HttpStatus.BAD_REQUEST, "잘못된 입력입니다."),
