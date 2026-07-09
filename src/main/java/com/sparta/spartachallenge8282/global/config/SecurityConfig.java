@@ -46,6 +46,7 @@ public class SecurityConfig {
             "/api/v1/orders",
             "/api/v1/orders/{orderId}",
             "api/v1/orders/{orderId}/items",
+            "api/v1/orders/{orderId}/cancel",
             // Swagger (추후 추가 시)
             "/api/v1/auth/signup",
             "/api/v1/auth/login",

@@ -73,8 +73,8 @@ public record OrderDetailResponseDto(
                 // 현재는 별도 orderedAt 필드가 없으므로 createdAt을 주문 시간으로 사용
                 order.getCreatedAt(),
 
-                // 현재는 취소 시간 필드가 없으므로 null 처리
-                null,
+                // 주문 취소 시간
+                order.getCanceledAt(),
 
                 order.getOrderItems()
                         .stream()

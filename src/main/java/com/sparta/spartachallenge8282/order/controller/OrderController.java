@@ -96,4 +96,20 @@ public class OrderController {
     }
 
 
+    // 주문 취소
+    @PatchMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderDetailResponseDto>> cancelOrder(
+            @PathVariable UUID orderId
+    ) {
+        OrderDetailResponseDto response = orderService.cancelOrder(
+                TEMP_CUSTOMER_ID,
+                orderId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("주문 취소 성공", response)
+        );
+    }
+
+
 }
