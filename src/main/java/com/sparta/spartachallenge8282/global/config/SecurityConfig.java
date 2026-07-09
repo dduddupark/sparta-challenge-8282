@@ -68,7 +68,9 @@ public class SecurityConfig {
                         ex.authenticationEntryPoint(authEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/stores/**", "/api/v1/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/stores/**", "/api/v1/products/**",
+                                "/api/v1/regions/**", "/api/v1/categories/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
