@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -45,6 +47,10 @@ public class OrderItem extends BaseEntity {
     @Column(nullable = false)
     private int totalPrice;
 
+    // OrderItemOption 테이블과 연관관계 설정
+    @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItemOption> options = new ArrayList<>();
+
     public OrderItem(
             UUID menuId,
             String menuName,
@@ -65,5 +71,11 @@ public class OrderItem extends BaseEntity {
      */
     protected void assignOrder(Order order) {
         this.order = order;
+    }
+
+    // 주문 상품에 선택한 옵션을 추가
+    public void addOption(OrderItemOption option) {
+        this.options.add(option);
+        option.assignOrderItem(this);
     }
 }

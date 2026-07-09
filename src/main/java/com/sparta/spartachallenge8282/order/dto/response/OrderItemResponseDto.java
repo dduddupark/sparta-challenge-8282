@@ -2,6 +2,7 @@ package com.sparta.spartachallenge8282.order.dto.response;
 
 import com.sparta.spartachallenge8282.order.entity.OrderItem;
 
+import java.util.List;
 import java.util.UUID;
 
 //OrderItem 엔티티를 API 응답 형태로 변환
@@ -17,7 +18,9 @@ public record OrderItemResponseDto(
         // 주문 수량
         int quantity,
         // 주문 상품 총 금액
-        int totalPrice
+        int totalPrice,
+        // 옵션 추가 목록 정보
+        List<OrderItemOptionResponseDto> options
 ) {
 
     public static OrderItemResponseDto from(OrderItem orderItem) {
@@ -27,7 +30,11 @@ public record OrderItemResponseDto(
                 orderItem.getMenuName(),
                 orderItem.getMenuPrice(),
                 orderItem.getQuantity(),
-                orderItem.getTotalPrice()
+                orderItem.getTotalPrice(),
+                orderItem.getOptions()
+                        .stream()
+                        .map(OrderItemOptionResponseDto::from)
+                        .toList()
         );
     }
 }
