@@ -357,6 +357,57 @@ class PaymentServiceIntegrationTest {
         }
     }
 
+    // ── 4-2. 주문 연동 취소/환불 (내부 API) ──────────────────────────────────────
+    @Nested
+    @DisplayName("주문 연동 취소/환불")
+    class OrderLinkedTransition {
+
+        @Test
+        @DisplayName("cancelByOrder - 가게 사유 취소면 PAID → CANCELED")
+        void cancelByOrder() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+
+            paymentService.cancelByOrder(created.orderId(), "사장님 미수락");
+
+            Payment reloaded = paymentRepository.findById(created.paymentId()).orElseThrow();
+            assertThat(reloaded.getStatus()).isEqualTo(PaymentStatus.CANCELED);
+            assertThat(reloaded.getCanceledReason()).isEqualTo("사장님 미수락");
+        }
+
+        @Test
+        @DisplayName("refundByOrder - 고객 요청 취소면 PAID → REFUNDED")
+        void refundByOrder() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+
+            paymentService.refundByOrder(created.orderId(), "고객 5분내 취소");
+
+            Payment reloaded = paymentRepository.findById(created.paymentId()).orElseThrow();
+            assertThat(reloaded.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+            assertThat(reloaded.getRefundedReason()).isEqualTo("고객 5분내 취소");
+        }
+
+        @Test
+        @DisplayName("cancelByOrder - PAID 가 아니면 PAYMENT_NOT_CANCELABLE")
+        void cancelByOrderNotPaid() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+            paymentService.refundByOrder(created.orderId(), "먼저 환불"); // PAID 아님으로 만들기
+
+            assertThatThrownBy(() -> paymentService.cancelByOrder(created.orderId(), "재취소"))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_NOT_CANCELABLE);
+        }
+
+        @Test
+        @DisplayName("cancelByOrder - 결제가 없는 주문이면 조용히 무시(예외 없음)")
+        void cancelByOrderNoPayment() {
+            Order order = persistOrder(CUSTOMER_ID, 27000); // 결제 미생성
+
+            paymentService.cancelByOrder(order.getId(), "결제 없음");
+
+            assertThat(paymentRepository.existsByOrder_Id(order.getId())).isFalse();
+        }
+    }
+
     // ── 5. 트랜잭션/영속화 검증 ──────────────────────────────────────────────────
     // flush + clear 로 영속성 컨텍스트를 비운 뒤 DB 에서 다시 읽어, 변경이 실제로
     // DB 에 반영(영속화)되는지 확인한다. (특히 취소/환불은 save() 없이 dirty checking 으로 반영)

@@ -171,6 +171,39 @@ public class PaymentService {
         return PaymentRefundResponse.from(payment);
     }
 
+    // ── 주문(Order) 연동용 내부 API ──────────────────────────────────────────────
+    // 주문 상태 변화에 따라 Order 도메인에서 호출한다. REST 진입점이 아니므로 롤 기반
+    // 권한 검증을 두지 않는다(호출 주체 검증은 Order 서비스 책임). 상태 전이 규칙(PAID 가드)만 강제한다.
+    // 취소 주체 기준: 가게(사장) 사유 → cancel(CANCELED), 고객 요청 → refund(REFUNDED).
+
+    /**
+     * 주문 취소에 따른 결제 취소(가게 사유). 미수락/거절/수락 후 사장 취소 시 Order 에서 호출.
+     * 결제가 없으면 조용히 무시한다(멱등: 결제 미생성 주문의 취소는 정상 흐름).
+     */
+    @Transactional
+    public void cancelByOrder(UUID orderId, String reason) {
+        paymentRepository.findByOrder_IdAndDeletedAtIsNull(orderId).ifPresent(payment -> {
+            if (payment.getStatus() != PaymentStatus.PAID) {
+                throw new CustomException(ErrorCode.PAYMENT_NOT_CANCELABLE); // 60007
+            }
+            payment.cancel(reason);
+        });
+    }
+
+    /**
+     * 주문 취소에 따른 결제 환불(고객 요청). 고객이 5분 내 취소 시 Order 에서 호출.
+     * 결제가 없으면 조용히 무시한다(멱등).
+     */
+    @Transactional
+    public void refundByOrder(UUID orderId, String reason) {
+        paymentRepository.findByOrder_IdAndDeletedAtIsNull(orderId).ifPresent(payment -> {
+            if (payment.getStatus() != PaymentStatus.PAID) {
+                throw new CustomException(ErrorCode.PAYMENT_NOT_REFUNDABLE); // 60008
+            }
+            payment.refund(reason);
+        });
+    }
+
     /** 특정 유저 결제 내역 조회(관리자). */
     public Page<PaymentResponse> getUserPayments(Long userId, Pageable pageable) {
         // 유저 존재 검증 (60009) — 없는 유저면 빈 페이지가 아니라 명시적 404
