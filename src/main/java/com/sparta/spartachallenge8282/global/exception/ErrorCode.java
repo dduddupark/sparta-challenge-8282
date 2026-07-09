@@ -67,6 +67,10 @@ public enum ErrorCode {
 
     // ── Menu (40001 ~ 49999) ────────────────────────────────────────────────
     MENU_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
+    NO_MENU_PERMISSION(40002, HttpStatus.FORBIDDEN, "메뉴 관리 권한이 없습니다."),
+    INVALID_MENU_STATUS(40003, HttpStatus.BAD_REQUEST, "유효하지 않은 메뉴 상태입니다."),
+    INVALID_MENU_PRICE(40004, HttpStatus.BAD_REQUEST, "메뉴 가격은 0원 이상이어야 합니다."),
+    ALREADY_DELETED_MENU(40005, HttpStatus.CONFLICT, "이미 삭제된 메뉴입니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
