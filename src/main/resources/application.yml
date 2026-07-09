@@ -3,9 +3,9 @@ spring:
     name: sparta-challenge-8282
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/delivery
-    username: delivery
-    password: delivery
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/delivery}
+    username: ${DB_USERNAME:delivery}
+    password: ${DB_PASSWORD:delivery}
     driver-class-name: org.postgresql.Driver
 
   jpa:
