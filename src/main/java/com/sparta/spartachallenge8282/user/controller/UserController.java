@@ -3,6 +3,7 @@ package com.sparta.spartachallenge8282.user.controller;
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.UpdateUserRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangePasswordRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
 import com.sparta.spartachallenge8282.user.service.UserService;
 import jakarta.validation.Valid;
@@ -33,5 +34,14 @@ public class UserController {
             @Valid @RequestBody UpdateUserRequest request) {
         UserResponse data = userService.updateMyInfo(userDetails.userId(), request);
         return ResponseEntity.ok(ApiResponse.success("회원정보 수정 완료", data));
+    }
+
+    /** 비밀번호 변경 */
+    @PatchMapping("/me/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(userDetails.userId(), request);
+        return ResponseEntity.ok(ApiResponse.success("비밀번호 변경 완료"));
     }
 }

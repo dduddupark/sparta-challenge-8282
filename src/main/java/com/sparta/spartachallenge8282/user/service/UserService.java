@@ -9,6 +9,7 @@ import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.UpdateUserRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangePasswordRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -148,5 +149,30 @@ public class UserService {
         user.updateProfile(request.nickname(), request.address());
         log.info("[UpdateMyInfo] 회원정보 수정 완료. id={}", userId);
         return UserResponse.from(user);
+    }
+
+    // ── 4. 비밀번호 변경 ────────────────────────────────────────────────────────
+
+    /**
+     * 비밀번호 변경.
+     * 현재 비밀번호 확인 후 새 비밀번호로 변경.
+     * 기존 비밀번호와 동일한 비밀번호로 변경 불가.
+     */
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new CustomException(ErrorCode.SAME_AS_OLD_PASSWORD);
+        }
+
+        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
+        user.updatePassword(encodedNewPassword);
+        log.info("[ChangePassword] 비밀번호 변경 완료. id={}", userId);
     }
 }

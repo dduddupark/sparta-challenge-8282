@@ -9,6 +9,7 @@ import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.UpdateUserRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangePasswordRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -442,6 +443,87 @@ class UserServiceTest {
             // then
             assertThat(result.email()).isEqualTo("test@sparta.com"); // 이메일 불변
             assertThat(result.role()).isEqualTo(UserRole.CUSTOMER);   // role 불변
+        }
+    }
+
+    // ── 4. 비밀번호 변경 ────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("비밀번호 변경 (changePassword)")
+    class ChangePasswordTest {
+
+        @Test
+        @DisplayName("정상 비밀번호 변경 성공")
+        void changePassword_success() {
+            // given
+            User user = User.builder()
+                    .email("test@sparta.com").password("oldPassword")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L))
+                    .willReturn(java.util.Optional.of(user));
+
+            ChangePasswordRequest request = new ChangePasswordRequest("oldPassword", "NewPassword123!");
+
+            given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true);
+            given(passwordEncoder.matches("NewPassword123!", "oldPassword")).willReturn(false);
+            given(passwordEncoder.encode("NewPassword123!")).willReturn("encodedNewPassword");
+
+            // when
+            userService.changePassword(1L, request);
+
+            // then
+            verify(passwordEncoder).encode("NewPassword123!");
+            assertThat(user.getPassword()).isEqualTo("encodedNewPassword");
+        }
+
+        @Test
+        @DisplayName("현재 비밀번호 불일치 - INVALID_PASSWORD 예외 발생")
+        void changePassword_wrongCurrentPassword_throwsException() {
+            // given
+            User user = User.builder()
+                    .email("test@sparta.com").password("oldPassword")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L))
+                    .willReturn(java.util.Optional.of(user));
+
+            ChangePasswordRequest request = new ChangePasswordRequest("wrongPassword", "NewPassword123!");
+
+            given(passwordEncoder.matches("wrongPassword", "oldPassword")).willReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePassword(1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_PASSWORD));
+        }
+
+        @Test
+        @DisplayName("새 비밀번호가 기존과 동일함 - SAME_AS_OLD_PASSWORD 예외 발생")
+        void changePassword_sameAsOldPassword_throwsException() {
+            // given
+            User user = User.builder()
+                    .email("test@sparta.com").password("oldPassword")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L))
+                    .willReturn(java.util.Optional.of(user));
+
+            ChangePasswordRequest request = new ChangePasswordRequest("oldPassword", "oldPassword");
+
+            given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true); // 현재 비밀번호 일치 (첫번째 검증)
+            // 두번째 검증 (새 비밀번호 == 기존 비밀번호) - 같은 matches() 호출이므로 두 번 연속 true 반환하도록 설정
+            given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true, true); 
+
+            // when & then
+            assertThatThrownBy(() -> userService.changePassword(1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.SAME_AS_OLD_PASSWORD));
         }
     }
 }
