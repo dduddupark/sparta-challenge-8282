@@ -1,6 +1,6 @@
 package com.sparta.spartachallenge8282.user.presentation.dto.request;
 
-import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
 import jakarta.validation.constraints.NotNull;
 
 public record ChangeRoleRequest(

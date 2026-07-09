@@ -3,7 +3,7 @@ package com.sparta.spartachallenge8282.global.config;
 import com.sparta.spartachallenge8282.global.security.AuthEntryPoint;
 import com.sparta.spartachallenge8282.global.security.JwtAuthFilter;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
-import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +40,14 @@ public class SecurityConfig {
      * 인증 없이 접근 가능한 경로 화이트리스트 (v1 API 설계 기준 반영)
      */
     private static final String[] PUBLIC_URLS = {
+            "/api/users/signup",
+            "/api/users/login",
+            // User 로그인 기능 구현 전 주문 생성 테스트를 위한 임시 허용
+            "/api/v1/orders",
+            "/api/v1/orders/{orderId}",
+            "api/v1/orders/{orderId}/items",
+            "api/v1/orders/{orderId}/cancel",
+            // Swagger (추후 추가 시)
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
             "/api/v1/auth/reissue", // 토큰 재발급은 필터를 거치지 않거나 통과시킨다

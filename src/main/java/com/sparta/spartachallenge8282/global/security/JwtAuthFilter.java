@@ -1,7 +1,7 @@
 package com.sparta.spartachallenge8282.global.security;
 
-import com.sparta.spartachallenge8282.user.domain.User;
-import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

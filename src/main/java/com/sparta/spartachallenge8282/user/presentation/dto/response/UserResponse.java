@@ -1,7 +1,7 @@
 package com.sparta.spartachallenge8282.user.presentation.dto.response;
 
-import com.sparta.spartachallenge8282.user.domain.User;
-import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
 
 import java.time.LocalDateTime;
 

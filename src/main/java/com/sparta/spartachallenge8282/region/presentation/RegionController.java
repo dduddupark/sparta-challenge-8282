@@ -15,13 +15,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-// TODO: 생성/수정/삭제는 MANAGER 전용 — 인가(@PreAuthorize) 미구현, User 연동 시 추가
 @RestController
 @RequestMapping("/api/v1/regions")
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class RegionController {
 
     private final RegionService regionService;
 
+    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
     @PostMapping
     public ResponseEntity<ApiResponse<RegionCreateResponse>> createRegion(
             @Valid @RequestBody RegionCreateRequest request) {
@@ -37,6 +38,7 @@ public class RegionController {
                 .body(ApiResponse.success("지역 생성 완료", new RegionCreateResponse(regionId)));
     }
 
+    // GET(목록/단건)은 인증된 사용자면 접근 가능.
     @GetMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionResponse>> getRegion(@PathVariable UUID regionId) {
         return ResponseEntity.ok(
@@ -53,6 +55,7 @@ public class RegionController {
         return ResponseEntity.ok(ApiResponse.success("지역 목록 조회 성공", data));
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
     @PatchMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionResponse>> updateRegion(
             @PathVariable UUID regionId,
@@ -61,6 +64,7 @@ public class RegionController {
                 ApiResponse.success("지역 수정 완료", regionService.updateRegion(regionId, request)));
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
     @DeleteMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionDeleteResponse>> deleteRegion(
             @PathVariable UUID regionId,

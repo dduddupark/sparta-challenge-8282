@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.user.domain;
+package com.sparta.spartachallenge8282.user.entity;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
 import jakarta.persistence.*;
