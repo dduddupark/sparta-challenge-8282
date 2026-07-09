@@ -72,10 +72,10 @@ public class ReviewService {
     public void deleteReview(UUID reviewId, Long userId) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
-                .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND)); // TODO: REVIEW_NOT_FOUND(80006)
+                .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
 
         if (!review.getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.NOT_REVIEW_OWNER); // TODO: NOT_REVIEW_OWNER(80005)
+            throw new CustomException(ErrorCode.NOT_REVIEW_OWNER);
         }
 
         review.softDelete(userId);
