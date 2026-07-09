@@ -10,6 +10,7 @@ import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest
 import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.UpdateUserRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangePasswordRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangeRoleRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -523,7 +524,7 @@ class UserServiceTest {
             assertThatThrownBy(() -> userService.changePassword(1L, request))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.SAME_AS_OLD_PASSWORD));
+                            .isEqualTo(ErrorCode.DUPLICATE_PASSWORD));
         }
     }
 
@@ -565,6 +566,80 @@ class UserServiceTest {
 
             // when & then
             assertThatThrownBy(() -> userService.withdraw(1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.USER_NOT_FOUND));
+        }
+    }
+
+    // ── 6. 관리자 권한 변경 ──────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("관리자 권한 변경 (changeRole)")
+    class ChangeRoleTest {
+
+        @Test
+        @DisplayName("정상 권한 변경 성공 - MASTER가 MANAGER 부여")
+        void changeRole_success() {
+            // given
+            User operator = User.builder()
+                    .email("master@sparta.com").password("encoded")
+                    .nickname("마스터").address("서울").role(UserRole.MASTER).build();
+            ReflectionTestUtils.setField(operator, "id", 1L);
+
+            User targetUser = User.builder()
+                    .email("test@sparta.com").password("encoded")
+                    .nickname("일반").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(targetUser, "id", 2L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L)).willReturn(java.util.Optional.of(operator));
+            given(userRepository.findByIdAndDeletedAtIsNull(2L)).willReturn(java.util.Optional.of(targetUser));
+
+            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MANAGER);
+
+            // when
+            userService.changeRole(2L, request, UserRole.MASTER);
+
+            // then
+            assertThat(targetUser.getRole()).isEqualTo(UserRole.MANAGER);
+        }
+
+        @Test
+        @DisplayName("권한 부족 - MANAGER가 MASTER 부여 시도 시 ACCESS_DENIED 예외")
+        void changeRole_notMaster_throwsException() {
+            // given
+            User operator = User.builder()
+                    .email("manager@sparta.com").password("encoded")
+                    .nickname("매니저").address("서울").role(UserRole.MANAGER).build();
+            ReflectionTestUtils.setField(operator, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L)).willReturn(java.util.Optional.of(operator));
+
+            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MASTER);
+
+            // when & then
+            assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MANAGER))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.ACCESS_DENIED));
+        }
+
+        @Test
+        @DisplayName("탈퇴한 회원 대상 권한 변경 시도 시 USER_NOT_FOUND 예외")
+        void changeRole_targetDeleted_throwsException() {
+            // given
+            User operator = User.builder()
+                    .email("master@sparta.com").password("encoded")
+                    .nickname("마스터").address("서울").role(UserRole.MASTER).build();
+            ReflectionTestUtils.setField(operator, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L)).willReturn(java.util.Optional.of(operator));
+            given(userRepository.findByIdAndDeletedAtIsNull(2L)).willReturn(java.util.Optional.empty());
+
+            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MANAGER);
+
+            // when & then
+            assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MASTER))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));

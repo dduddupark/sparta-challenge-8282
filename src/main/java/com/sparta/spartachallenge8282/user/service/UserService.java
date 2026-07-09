@@ -4,20 +4,22 @@ import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
 import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
-import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest;
-import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
-import com.sparta.spartachallenge8282.user.presentation.dto.request.UpdateUserRequest;
-import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangePasswordRequest;
-import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.*;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.sparta.spartachallenge8282.global.common.PageResponse;
 
+/**
+ * User 도메인 서비스 레이어.
+ * 회원 관련 비즈니스 규칙 및 트랜잭션 경계를 담당한다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,10 +30,10 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
 
-    // ── 1. 회원가입 ─────────────────────────────────────────────────────────────
+    // ── 1. 인증(Auth) 비즈니스 로직 ─────────────────────────────────────────────
 
     /**
-     * 회원가입.
+     * 회원 가입.
      * 기본 CUSTOMER 권한으로 고정 가입되며, 중복 이메일 가입 요청 시 에러를 반환한다.
      */
     @Transactional
@@ -47,7 +49,7 @@ public class UserService {
                 .password(encodedPassword)
                 .nickname(request.nickname())
                 .address(request.address())
-                .role(UserRole.CUSTOMER)
+                .role(UserRole.CUSTOMER) // 가입 시 CUSTOMER 고정
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -55,142 +57,198 @@ public class UserService {
         return UserResponse.from(savedUser);
     }
 
-    // ── 2. 로그인 / 로그아웃 / 토큰 재발급 ─────────────────────────────────────
-
     /**
      * 로그인.
-     * 이메일 미존재·비밀번호 불일치 에러 메시지를 통합하여 이메일 수집 공격을 방어한다.
-     * 로그인 성공 시 AccessToken + RefreshToken을 발급하고, RefreshToken을 DB에 저장한다.
+     * 보안 침해(이메일 탐색 공격)를 막기 위해 가입되지 않은 이메일 조회 시에도
+     * 비밀번호 오류와 동일한 INVALID_PASSWORD 예외를 응답한다.
      */
     @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmailAndDeletedAtIsNull(request.email())
-                .orElseGet(() -> {
-                    log.warn("[Login] 로그인 실패 - 존재하지 않는 이메일. email={}", request.email());
-                    throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
-                });
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_PASSWORD)); // 에러 메시지 통합
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            log.warn("[Login] 로그인 실패 - 비밀번호 불일치. userId={}", user.getId());
-            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+            throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
 
-        String accessToken  = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
+        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
         String refreshToken = jwtProvider.createRefreshToken(user.getEmail());
 
-        user.updateRefreshToken(refreshToken);
-        log.info("[Login] 로그인 성공. id={}, email={}", user.getId(), user.getEmail());
+        user.updateRefreshToken(refreshToken); // DB에 Refresh Token 캐싱
+
+        log.info("[Login] 로그인 성공. userId={}, email={}", user.getId(), user.getEmail());
         return new LoginResponse(accessToken, refreshToken);
     }
 
     /**
      * 로그아웃.
-     * DB에 저장된 RefreshToken을 즉시 삭제하여 재사용을 차단한다.
+     * 사용자 DB 내 보관 중인 Refresh Token을 제거한다.
      */
     @Transactional
     public void logout(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         user.clearRefreshToken();
-        log.info("[Logout] 로그아웃 완료. id={}", userId);
+        log.info("[Logout] 로그아웃 완료. userId={}", userId);
     }
 
     /**
-     * 토큰 재발급 (RTR - Refresh Token Rotation).
-     * RefreshToken 검증 후 AccessToken + RefreshToken을 새로 발급하고 DB를 갱신한다.
-     * 토큰 재사용 공격을 방어하기 위해 RefreshToken도 매번 교체한다.
+     * Access Token 재발급.
+     * 전달된 Refresh Token의 만료/유효성 및 DB 값 일치 여부를 검증한 후 신규 Access Token을 반환한다.
      */
     @Transactional
-    public LoginResponse reissue(String refreshToken) {
-        String email = jwtProvider.validateRefreshToken(refreshToken);
+    public LoginResponse reissue(String bearerRefreshToken) {
+        String token = jwtProvider.resolveToken(bearerRefreshToken);
+        if (token == null) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        String email = jwtProvider.validateRefreshToken(token);
         if (email == null) {
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
         User user = userRepository.findByEmailAndDeletedAtIsNull(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // DB에 저장된 RefreshToken과 일치 여부 확인 (탈취 토큰 차단)
-        if (!refreshToken.equals(user.getRefreshToken())) {
-            user.clearRefreshToken(); // 불일치 시 즉시 무효화
-            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        // DB에 기록된 토큰과 다른 경우 (중복 재발급 혹은 탈취 가능성 차단)
+        if (user.getRefreshToken() == null || !user.getRefreshToken().equals(token)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        String newAccessToken  = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
+        // 새로운 Access Token 생성 및 Refresh Token Rotation(RTR) 적용
+        String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
         String newRefreshToken = jwtProvider.createRefreshToken(user.getEmail());
 
         user.updateRefreshToken(newRefreshToken);
-        log.info("[Reissue] 토큰 재발급 완료. id={}", user.getId());
+
+        log.info("[Reissue] 토큰 재발급 완료. userId={}", user.getId());
         return new LoginResponse(newAccessToken, newRefreshToken);
     }
 
-    // ── 3. 회원 정보 조회 / 수정 ──────────────────────────────────────────────────
+    // ── 2. 회원(User) 정보 관리 ────────────────────────────────────────────────
 
     /**
      * 내 정보 조회.
-     * 탈퇴한 회원은 조회 불가 (deletedAt IS NULL).
      */
     public UserResponse getMyInfo(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        log.info("[GetMyInfo] 회원정보 조회. id={}", userId);
         return UserResponse.from(user);
     }
 
     /**
      * 회원 정보 수정 (닉네임, 주소).
-     * null 또는 빈 문자열이면 기존 값 유지. JPA Dirty Checking으로 저장.
-     * 이메일·권한(Role)은 수정 불가.
+     * DTO 값이 null 이거나 비어 있는 경우 덮어쓰지 않도록 엔티티의 보호 가드가 작동한다.
      */
     @Transactional
     public UserResponse updateMyInfo(Long userId, UpdateUserRequest request) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
         user.updateProfile(request.nickname(), request.address());
-        log.info("[UpdateMyInfo] 회원정보 수정 완료. id={}", userId);
+        log.info("[Profile Update] 정보 변경 완료. userId={}", userId);
         return UserResponse.from(user);
     }
 
-    // ── 4. 비밀번호 변경 ────────────────────────────────────────────────────────
-
     /**
      * 비밀번호 변경.
-     * 현재 비밀번호 확인 후 새 비밀번호로 변경.
-     * 기존 비밀번호와 동일한 비밀번호로 변경 불가.
+     * 현재 비밀번호와 동일한 새 비밀번호로의 변경 시도를 차단한다.
      */
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 현재 비밀번호 검증
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
 
+        // 동일 비밀번호 재사용 방지 검증
         if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
-            throw new CustomException(ErrorCode.SAME_AS_OLD_PASSWORD);
+            throw new CustomException(ErrorCode.DUPLICATE_PASSWORD);
         }
 
-        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
-        user.updatePassword(encodedNewPassword);
-        log.info("[ChangePassword] 비밀번호 변경 완료. id={}", userId);
+        user.updatePassword(passwordEncoder.encode(request.newPassword()));
+        log.info("[Password Change] 비밀번호 변경 완료. userId={}", userId);
     }
 
-    // ── 5. 회원 탈퇴 ────────────────────────────────────────────────────────────
-
     /**
-     * 회원 탈퇴.
-     * 물리 삭제(Hard Delete)하지 않고 Soft Delete를 적용한다.
-     * 탈퇴 시 Refresh Token을 함께 제거하여 기존 인증을 무효화한다.
+     * 회원 탈퇴 (Soft Delete).
+     * 로그아웃과 탈퇴 처리를 동시에 진행하여 세션을 즉각 무효화한다.
      */
     @Transactional
     public void withdraw(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.softDelete(userId);
+        user.softDelete(userId); // 내 식별자로 탈퇴 기록 (BaseEntity)
+        user.clearRefreshToken(); // 탈퇴 시 토큰 무효화
+        log.info("[Withdrawal] 회원 탈퇴 완료. userId={}", userId);
+    }
+
+    // ── 3. 관리자(Manager) 비즈니스 로직 ─────────────────────────────────────────
+
+    /**
+     * [관리자용] 활성 회원 목록 조회 (페이징).
+     */
+    public PageResponse<UserResponse> getActiveUsers(Pageable pageable) {
+        return PageResponse.from(userRepository.findAllByDeletedAtIsNull(pageable)
+                .map(UserResponse::from));
+    }
+
+    /**
+     * [관리자용] 탈퇴 회원 목록 조회 (페이징).
+     */
+    public PageResponse<UserResponse> getWithdrawnUsers(Pageable pageable) {
+        return PageResponse.from(userRepository.findAllByDeletedAtIsNotNull(pageable)
+                .map(UserResponse::from));
+    }
+
+    /**
+     * [관리자용] 회원 상세 조회.
+     * 탈퇴한 회원도 조회 가능하도록 findById 기본 메서드를 활용한다.
+     */
+    public UserResponse getUserDetail(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return UserResponse.from(user);
+    }
+
+    /**
+     * [관리자용] 회원 강제 삭제 (Soft Delete).
+     */
+    @Transactional
+    public void deleteUser(Long targetUserId, Long adminUserId) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        user.softDelete(adminUserId); // 삭제를 지시한 관리자 ID 기록
         user.clearRefreshToken();
-        
-        log.info("[Withdraw] 회원 탈퇴 완료. id={}", userId);
+        log.info("[Admin Force Delete] 회원 강제 삭제 처리. targetUserId={}, adminUserId={}", targetUserId, adminUserId);
+    }
+
+    /**
+     * [관리자용] 회원 권한/역할 변경.
+     * 권한 상승 공격 방지 정책: MANAGER 등급은 MASTER/MANAGER 등급으로 승격/생성을 제어할 수 없다.
+     * 오직 MASTER 권한을 가진 어드민만 관리자 자격(MASTER, MANAGER)을 부여할 수 있다.
+     */
+    @Transactional
+    public void changeRole(Long targetUserId, ChangeRoleRequest request, UserRole executorRole) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 부여하려는 역할이 관리자 등급(MASTER, MANAGER)인데, 요청한 사람이 MASTER가 아닌 경우 차단
+        if (request.role() == UserRole.MASTER || request.role() == UserRole.MANAGER) {
+            if (executorRole != UserRole.MASTER) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+
+        UserRole oldRole = user.getRole();
+        user.updateRole(request.role());
+        log.info("[Admin Role Change] 권한 변경 완료. userId={}, {} -> {} (by {})", targetUserId, oldRole, request.role(), executorRole);
     }
 }
