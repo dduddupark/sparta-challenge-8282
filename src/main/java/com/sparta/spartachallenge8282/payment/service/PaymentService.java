@@ -15,7 +15,9 @@ import com.sparta.spartachallenge8282.payment.dto.response.PaymentResponse;
 import com.sparta.spartachallenge8282.payment.entity.Payment;
 import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
 import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,7 +36,6 @@ import java.util.UUID;
  * <ul>
  *   <li>OWNER "본인 가게" 검증: Store 도메인이 없어 롤 레벨(@PreAuthorize)까지만 검증하고
  *       가게 소유 여부는 TODO 로 남긴다.</li>
- *   <li>유저 존재 검증(60009): User 도메인이 없어 생략한다(빈 페이지 반환).</li>
  *   <li>PG 연동 부재: transactionId 는 임시 채번한다.</li>
  *   <li>Idempotency-Key: 저장 컬럼이 없어, 주문당 1건 유니크 제약(중복 결제 60005)으로 대체한다.</li>
  * </ul>
@@ -46,6 +47,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
 
     // 롤 문자열 (UserDetailsImpl.getRole() 원문 — ROLE_ 접두사 없음 가정)
     //TODO User Enum 있으면 교체해줘야함
@@ -72,7 +74,7 @@ public class PaymentService {
             throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        // 3) 중복 결제 방지 (60005) — 주문당 결제 1건
+        // 3) 중복 결제 방지 (60005) — 주문당 결제 1건 (사전 체크: 빠른 실패 경로)
         if (paymentRepository.existsByOrder_Id(order.getId())) {
             throw new CustomException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
         }
@@ -87,7 +89,14 @@ public class PaymentService {
                 .paidAt(LocalDateTime.now())
                 .build();
 
-        return PaymentCreateResponse.from(paymentRepository.save(payment));
+        // 사전 체크를 통과한 동시 요청은 order_id 유니크 제약에서 충돌한다.
+        // saveAndFlush 로 즉시 INSERT 를 발생시켜 이 트랜잭션 안에서 제약 위반을 잡고
+        // 500 대신 60005(중복 결제)로 변환한다.
+        try {
+            return PaymentCreateResponse.from(paymentRepository.saveAndFlush(payment));
+        } catch (DataIntegrityViolationException e) {
+            throw new CustomException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+        }
     }
 
     /** 주문의 결제 내역 조회. */
@@ -148,7 +157,10 @@ public class PaymentService {
 
     /** 특정 유저 결제 내역 조회(관리자). */
     public Page<PaymentResponse> getUserPayments(Long userId, Pageable pageable) {
-        // TODO: User 도메인 확정 후 유저 존재 검증 (60009)
+        // 유저 존재 검증 (60009) — 없는 유저면 빈 페이지가 아니라 명시적 404
+        if (!userRepository.existsByIdAndDeletedAtIsNull(userId)) {
+            throw new CustomException(ErrorCode.PAYMENT_USER_NOT_FOUND);
+        }
         return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(userId, pageable)
                 .map(PaymentResponse::from);
     }
