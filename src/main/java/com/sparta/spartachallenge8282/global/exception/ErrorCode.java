@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
  * 20001 ~ 29999 : Store
  * 30001 ~ 30999 : Category
  * 31001 ~ 31999 : Region
- * 40001 ~ 59999 : Menu
+ * 40001 ~ 49999 : Menu
  * 50001 ~ 59999 : Order
  * 60001 ~ 69999 : Payment
  * 70001 ~ 79999 : AI
@@ -50,14 +50,18 @@ public enum ErrorCode {
     STORE_CLOSED(20002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
 
 
-    // ── Category (30001 ~ ) ──────────────────────────────────────────────
+    // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
 
-    // ── Region (31001 ~ ) ────────────────────────────────────────────────
+    // ── Region (31001 ~ 31999) ──
     REGION_NOT_FOUND(31001, HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다."),
+    DUPLICATE_REGION_NAME(31002, HttpStatus.CONFLICT, "이미 존재하는 지역명입니다."),
+    REGION_IN_USE(31003, HttpStatus.CONFLICT, "사용 중인 지역은 삭제할 수 없습니다."),
+    ALREADY_DELETED_REGION(31004, HttpStatus.CONFLICT, "이미 삭제된 지역입니다."),
+    REGION_NOT_SERVICEABLE(31005, HttpStatus.CONFLICT, "현재 주문 가능한 지역이 아닙니다."),
 
-    // ── Menu (40001 ~ ) ────────────────────────────────────────────────
-    MENU_NOT_FOUND(32001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
+    // ── Menu (40001 ~ 49999) ────────────────────────────────────────────────
+    MENU_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────

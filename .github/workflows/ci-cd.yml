@@ -69,3 +69,15 @@ jobs:
             export DB_PASSWORD='${{ secrets.DB_PASSWORD }}'
             docker compose up -d --build
             docker image prune -f
+            # 헬스체크: 앱이 실제로 기동해 8080에 응답하는지 확인 (실패 시 배포 실패 처리)
+            echo "Waiting for app to become healthy on :8080 ..."
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
+                echo "App is up (attempt $i)"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "App did not respond on :8080 after 150s"
+            docker compose logs --tail=50 app
+            exit 1

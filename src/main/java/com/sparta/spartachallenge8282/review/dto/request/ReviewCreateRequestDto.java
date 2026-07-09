@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
 * 리뷰 생성 요청 DTO
 * 주문과 평점을 Not Null로 받음.
- * */
+* */
 
 public record ReviewCreateRequestDto(
         @NotNull(message = "주문 ID는 필수입니다.")

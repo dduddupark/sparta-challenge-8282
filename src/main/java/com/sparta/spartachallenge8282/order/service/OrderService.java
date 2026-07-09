@@ -1,15 +1,25 @@
 package com.sparta.spartachallenge8282.order.service;
 
+import com.sparta.spartachallenge8282.global.common.PageResponse;
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderItemResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.OrderListResponseDto;
 import com.sparta.spartachallenge8282.order.entity.Order;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.dto.response.OrderCreateResponseDto;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -70,5 +80,64 @@ public class OrderService {
         long randomNumber = System.currentTimeMillis() % 1000;
 
         return "A" + date + String.format("%03d", randomNumber);
+    }
+
+    /*
+     * 주문 단건 조회
+     * 현재 단계에서는 로그인 연동 전이므로 Controller에서 전달한 임시 userId를 기준으로
+     * CUSTOMER가 본인의 주문만 조회한다고 가정
+     */
+    @Transactional(readOnly = true)
+    public OrderDetailResponseDto getOrder(
+            Long userId,
+            UUID orderId
+    ) {
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        validateOrderOwner(order, userId);
+
+        return OrderDetailResponseDto.from(order);
+    }
+
+    /*
+     * 주문 접근 권한 검증
+     * 현재는 CUSTOMER 기준만 검증
+     * 추후 로그인/권한 연동 후 CUSTOMER, OWNER, MANAGER 권한별 검증으로 확장
+     */
+    private void validateOrderOwner(Order order, Long userId) {
+        if (!order.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    // 주문 상품 목록 조회
+    @Transactional(readOnly = true)
+    public List<OrderItemResponseDto> getOrderItems(
+            Long userId,
+            UUID orderId
+    ) {
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        validateOrderOwner(order, userId);
+
+        return order.getOrderItems()
+                .stream()
+                .map(OrderItemResponseDto::from)
+                .toList();
+    }
+
+    // 주문 목록 조회 + 페이징
+    @Transactional(readOnly = true)
+    public PageResponse<OrderListResponseDto> getOrders(
+            Long userId,
+            Pageable pageable
+    ) {
+        Page<OrderListResponseDto> orders = orderRepository
+                .findAllByUserIdAndDeletedAtIsNull(userId, pageable)
+                .map(OrderListResponseDto::from);
+
+        return PageResponse.from(orders);
     }
 }

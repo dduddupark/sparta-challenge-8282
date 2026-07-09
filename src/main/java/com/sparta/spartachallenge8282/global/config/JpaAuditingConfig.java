@@ -34,7 +34,7 @@ public class JpaAuditingConfig {
                 return Optional.empty();
             }
 
-            return Optional.of(userDetails.getUserId());
+            return Optional.of(userDetails.userId());
         };
     }
 }

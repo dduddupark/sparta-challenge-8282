@@ -1,8 +1,11 @@
 package com.sparta.spartachallenge8282.order.repository;
 
 import com.sparta.spartachallenge8282.order.entity.Order;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,4 +21,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      * BaseEntity의 deletedAt이 null이면 삭제되지 않은 데이터로 본다.
      */
     Optional<Order> findByIdAndDeletedAtIsNull(UUID orderId);
+
+    //주문 목록 조회 + 페이징
+    Page<Order> findAllByUserIdAndDeletedAtIsNull(
+            Long userId,
+            Pageable pageable
+    );
 }

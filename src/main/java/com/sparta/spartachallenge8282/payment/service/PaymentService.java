@@ -155,7 +155,7 @@ public class PaymentService {
 
     /** 고객 본인 결제 목록 조회. (userId 는 인증 주체에서 도출 — 타인 조회 불가) */
     public Page<PaymentResponse> getMyPayments(UserDetailsImpl user, Pageable pageable) {
-        return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(user.getUserId(), pageable)
+        return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(user.userId(), pageable)
                 .map(PaymentResponse::from);
     }
 
@@ -171,7 +171,7 @@ public class PaymentService {
      * MANAGER/MASTER 는 전체 허용, CUSTOMER 는 본인 주문만, OWNER 는 (가게 검증은 TODO) 롤 레벨 허용.
      */
     private void validateReadAccess(Payment payment, UserDetailsImpl user) {
-        String role = user.getRole();
+        String role = user.role();
         if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role) || ROLE_OWNER.equals(role)) {
             // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
             return;
@@ -188,7 +188,7 @@ public class PaymentService {
      * 명세상 취소 주체는 OWNER(및 MANAGER/MASTER). CUSTOMER 등 그 외 롤은 거부한다.
      */
     private void validateCancelAccess(Payment payment, UserDetailsImpl user) {
-        String role = user.getRole();
+        String role = user.role();
         if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role)) {
             return;
         }
@@ -204,7 +204,7 @@ public class PaymentService {
      * MANAGER/MASTER 는 허용, CUSTOMER 는 본인 주문만 허용.
      */
     private void validateOwnerOrAdmin(Payment payment, UserDetailsImpl user) {
-        String role = user.getRole();
+        String role = user.role();
         if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role)) {
             return;
         }
@@ -217,7 +217,7 @@ public class PaymentService {
 
     /** 결제가 걸린 주문이 요청자 본인 것인지 검증. */
     private void validateOrderOwner(Payment payment, UserDetailsImpl user) {
-        if (!payment.getOrder().getUserId().equals(user.getUserId())) {
+        if (!payment.getOrder().getUserId().equals(user.userId())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }

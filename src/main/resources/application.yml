@@ -3,9 +3,9 @@ spring:
     name: sparta-challenge-8282
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/delivery
-    username: delivery
-    password: delivery
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/delivery}
+    username: ${DB_USERNAME:delivery}
+    password: ${DB_PASSWORD:delivery}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,4 +19,5 @@ spring:
 jwt:
   # 최소 32자 이상의 비밀키 (운영 환경에서는 환경변수로 주입)
   secret: sparta-orderfront-secret-key-must-be-at-least-32-characters
-  expiration-ms: 3600000   # 1시간 (ms)
+  access-expiration-ms: 3600000      # 액세스 토큰 만료: 1시간
+  refresh-expiration-ms: 604800000   # 리프레시 토큰 만료: 7일

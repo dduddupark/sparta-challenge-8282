@@ -52,7 +52,7 @@ public class PaymentController {
             @AuthenticationPrincipal UserDetailsImpl user
     ) {
         PaymentCreateResponse data =
-                paymentService.createPayment(request, user.getUserId(), idempotencyKey);
+                paymentService.createPayment(request, user.userId(), idempotencyKey);
         return ApiResponse.success("결제가 완료되었습니다.", data);
     }
 
