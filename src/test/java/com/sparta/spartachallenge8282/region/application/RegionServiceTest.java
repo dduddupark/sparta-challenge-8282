@@ -83,7 +83,7 @@ class RegionServiceTest {
                 .name("광화문").sortOrder(1).isActive(true).isServiceAvailable(false)
                 .build();
         ReflectionTestUtils.setField(region, "id", id);   // 빌더로는 id를 못 넣어서 주입
-        given(regionRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(region));
+        given(regionRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id)).willReturn(Optional.of(region));
 
         // when
         RegionResponse result = regionService.getRegion(id);
@@ -100,7 +100,7 @@ class RegionServiceTest {
     void 단건조회_없는id는_REGION_NOT_FOUND를_던진다() {
         // given
         UUID id = UUID.randomUUID();
-        given(regionRepository.findByIdAndDeletedAtIsNull(id))
+        given(regionRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id))
                 .willReturn(Optional.empty());
 
         // when
@@ -125,7 +125,7 @@ class RegionServiceTest {
         given(regionRepository.searchRegions("광화문", true, pageable)).willReturn(page);
 
         // when
-        Page<RegionResponse> result = regionService.getRegionList("광화문", true, pageable);
+        Page<RegionResponse> result = regionService.getRegionList("광화문", pageable);
 
         // then
         assertThat(result.getTotalElements()).isEqualTo(1);
@@ -140,13 +140,13 @@ class RegionServiceTest {
         Pageable pageable = PageRequest.of(0, 3);
         Page<Region> page = new PageImpl<>(List.of(), pageable, 0);
 
-        given(regionRepository.searchRegions("", null, pageable)).willReturn(page);
+        given(regionRepository.searchRegions("", true, pageable)).willReturn(page);
 
         // when
-        regionService.getRegionList(null, null, pageable);
+        regionService.getRegionList(null, pageable);
 
         // then
-        verify(regionRepository).searchRegions("", null, pageable);
+        verify(regionRepository).searchRegions("", true, pageable);
     }
 
     @Test

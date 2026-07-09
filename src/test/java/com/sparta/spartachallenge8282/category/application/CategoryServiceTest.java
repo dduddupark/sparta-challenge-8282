@@ -89,7 +89,7 @@ class CategoryServiceTest {
                 .name("한식").sortOrder(1).isActive(true)
                 .build();
         ReflectionTestUtils.setField(category, "id", id);
-        given(categoryRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(category));
+        given(categoryRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id)).willReturn(Optional.of(category));
 
         // when
         CategoryResponse result = categoryService.getCategory(id);
@@ -105,7 +105,7 @@ class CategoryServiceTest {
     void 단건조회_없는id는_CATEGORY_NOT_FOUND를_던진다() {
         // given
         UUID id = UUID.randomUUID();
-        given(categoryRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.empty());
+        given(categoryRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id)).willReturn(Optional.empty());
 
         // when
         CustomException exception = assertThrows(CustomException.class,
@@ -131,7 +131,7 @@ class CategoryServiceTest {
         given(categoryRepository.searchCategories("한식", true, pageable)).willReturn(page);
 
         // when
-        Page<CategoryResponse> result = categoryService.getCategoryList("한식", true, pageable);
+        Page<CategoryResponse> result = categoryService.getCategoryList("한식", pageable);
 
         // then
         assertThat(result.getTotalElements()).isEqualTo(1);
@@ -146,13 +146,13 @@ class CategoryServiceTest {
         Pageable pageable = PageRequest.of(0, 3);
         Page<Category> page = new PageImpl<>(List.of(), pageable, 0);
 
-        given(categoryRepository.searchCategories("", null, pageable)).willReturn(page);
+        given(categoryRepository.searchCategories("", true, pageable)).willReturn(page);
 
         // when
-        categoryService.getCategoryList(null, null, pageable);
+        categoryService.getCategoryList(null, pageable);
 
         // then
-        verify(categoryRepository).searchCategories("", null, pageable);
+        verify(categoryRepository).searchCategories("", true, pageable);
     }
 
     // ── 수정 ────────────────────────────────────────────────────────────────

@@ -40,15 +40,17 @@ public class RegionService {
     }
 
     public RegionResponse getRegion(UUID id) {
-        Region region = regionRepository.findByIdAndDeletedAtIsNull(id)
+        Region region = regionRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_FOUND));
         return RegionResponse.from(region);
     }
 
-    public Page<RegionResponse> getRegionList(String keyword, Boolean isActive, Pageable pageable) {
+    public Page<RegionResponse> getRegionList(String keyword, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // keyword가 없으면 LIKE '%%'로 전체 조회되도록 빈 문자열로 넘긴다.
 
-        return regionRepository.searchRegions(searchKeyword, isActive, pageable)
+        // 공개 조회는 활성 항목만 노출한다.
+        // TODO(관리자 확장): 비활성 포함 전체 조회는 admin 엔드포인트에서 searchRegions에 isActive를 전달해 재사용한다.
+        return regionRepository.searchRegions(searchKeyword, true, pageable)
                 .map(RegionResponse::from);
     }
 

@@ -45,15 +45,17 @@ public class CategoryService {
     }
 
     public CategoryResponse getCategory(UUID id) {
-        Category category = categoryRepository.findByIdAndDeletedAtIsNull(id)
+        Category category = categoryRepository.findByIdAndDeletedAtIsNullAndIsActiveTrue(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
         return CategoryResponse.from(category);
     }
 
-    public Page<CategoryResponse> getCategoryList(String keyword, Boolean isActive, Pageable pageable) {
+    public Page<CategoryResponse> getCategoryList(String keyword, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // keyword 없으면 LIKE '%%'로 전체 조회
 
-        return categoryRepository.searchCategories(searchKeyword, isActive, pageable)
+        // 공개 조회는 활성 항목만 노출한다.
+        // TODO(관리자 확장): 비활성 포함 전체 조회는 admin 엔드포인트에서 searchCategories에 isActive를 전달해 재사용한다.
+        return categoryRepository.searchCategories(searchKeyword, true, pageable)
                 .map(CategoryResponse::from);
     }
 

@@ -47,10 +47,9 @@ public class CategoryController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getCategoryList(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Boolean isActive,
             @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
         PageResponse<CategoryResponse> data =
-                PageResponse.from(categoryService.getCategoryList(keyword, isActive, pageable));
+                PageResponse.from(categoryService.getCategoryList(keyword, pageable));
         return ResponseEntity.ok(ApiResponse.success("카테고리 목록 조회 성공", data));
     }
 

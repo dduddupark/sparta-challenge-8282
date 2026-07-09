@@ -38,7 +38,7 @@ public class RegionController {
                 .body(ApiResponse.success("지역 생성 완료", new RegionCreateResponse(regionId)));
     }
 
-    // GET(목록/단건)은 인증된 사용자면 접근 가능.
+    // 조회(GET)는 비로그인 공개 — 활성 항목만 노출(SecurityConfig 화이트리스트).
     @GetMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionResponse>> getRegion(@PathVariable UUID regionId) {
         return ResponseEntity.ok(
@@ -48,10 +48,9 @@ public class RegionController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<RegionResponse>>> getRegionList(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Boolean isActive,
             @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
         PageResponse<RegionResponse> data =
-                PageResponse.from(regionService.getRegionList(keyword, isActive, pageable));
+                PageResponse.from(regionService.getRegionList(keyword, pageable));
         return ResponseEntity.ok(ApiResponse.success("지역 목록 조회 성공", data));
     }
 
