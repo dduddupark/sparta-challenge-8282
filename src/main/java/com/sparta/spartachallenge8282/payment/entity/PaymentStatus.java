@@ -7,11 +7,12 @@ import lombok.RequiredArgsConstructor;
 /**
  * 결제 상태.
  * <pre>
- * PAID     : 주문 생성 시 결제 성공        (paid_at)
- * FAILED   : 결제 처리 실패               (failed_reason)
- * CANCELED : 사장님 미수락 등으로 취소     (canceled_at, canceled_reason)
- * REFUNDED : 수락 후 취소 등으로 환불      (refunded_at, refunded_reason)
+ * PAID     : 주문 생성 시 결제 성공                       (paid_at)
+ * FAILED   : 결제 처리 실패                              (failed_reason)
+ * CANCELED : 가게(사장) 사유 취소 — 미수락/거절/수락 후 취소  (canceled_at, canceled_reason)
+ * REFUNDED : 고객 요청 취소(환불) — 고객이 5분 내 취소        (refunded_at, refunded_reason)
  * </pre>
+ * <p>취소 기준은 <b>주체</b>다: 가게(사장) 사유는 {@code CANCELED}, 고객 요청은 {@code REFUNDED}.
  * {@code @Enumerated(EnumType.STRING)} 으로 저장.
  */
 @Getter

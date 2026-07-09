@@ -16,6 +16,9 @@ import com.sparta.spartachallenge8282.payment.entity.Payment;
 import com.sparta.spartachallenge8282.payment.entity.PaymentMethod;
 import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
 import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +52,9 @@ class PaymentServiceIntegrationTest {
     @Autowired
     private OrderRepository orderRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @PersistenceContext
     private EntityManager em;
 
@@ -71,6 +77,18 @@ class PaymentServiceIntegrationTest {
                 "문 앞에 두고 벨 눌러주세요."
         );
         return orderRepository.save(order);
+    }
+
+    /** 예시 유저 저장 후 생성된 PK 반환. */
+    private Long persistUser() {
+        User user = User.builder()
+                .email("u" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+                .password("encoded")
+                .nickname("tester")
+                .address("서울특별시 종로구 세종대로 172")
+                .role(UserRole.CUSTOMER)
+                .build();
+        return userRepository.save(user).getId();
     }
 
     private UserDetailsImpl customer(Long userId) {
@@ -133,6 +151,24 @@ class PaymentServiceIntegrationTest {
             assertThatThrownBy(() -> paymentService.createPayment(req, CUSTOMER_ID, null))
                     .isInstanceOf(CustomException.class)
                     .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        @Test
+        @DisplayName("멱등 - 같은 Idempotency-Key 재요청이면 새 결제 없이 최초 결과를 그대로 반환한다")
+        void idempotentReplay() {
+            Order order = persistOrder(CUSTOMER_ID, 27000);
+            String key = "idem-key-replay";
+
+            PaymentCreateResponse first = paymentService.createPayment(
+                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
+
+            // 같은 키로 재요청 (재시도 시나리오)
+            PaymentCreateResponse retry = paymentService.createPayment(
+                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
+
+            // 동일한 결제가 반환되고, DB 에도 결제는 1건뿐
+            assertThat(retry.paymentId()).isEqualTo(first.paymentId());
+            assertThat(paymentRepository.count()).isEqualTo(1);
         }
 
         @Test
@@ -289,6 +325,86 @@ class PaymentServiceIntegrationTest {
                     created.paymentId(), new PaymentRefundRequest("2차 환불"), customer(CUSTOMER_ID)))
                     .isInstanceOf(CustomException.class)
                     .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_NOT_REFUNDABLE);
+        }
+    }
+
+    // ── 4-1. 특정 유저 결제 내역 조회(관리자) ────────────────────────────────────
+    @Nested
+    @DisplayName("특정 유저 결제 내역 조회")
+    class GetUserPayments {
+
+        @Test
+        @DisplayName("성공 - 존재하는 유저의 결제 목록을 반환한다")
+        void success() {
+            Long userId = persistUser();
+            createPaidPayment(userId, 27000);
+
+            var page = paymentService.getUserPayments(userId, org.springframework.data.domain.PageRequest.of(0, 20));
+
+            assertThat(page.getTotalElements()).isEqualTo(1);
+            assertThat(page.getContent().get(0).amount()).isEqualTo(27000L);
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 유저면 PAYMENT_USER_NOT_FOUND")
+        void userNotFound() {
+            Long missingUserId = 999_999L;
+
+            assertThatThrownBy(() ->
+                    paymentService.getUserPayments(missingUserId, org.springframework.data.domain.PageRequest.of(0, 20)))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_USER_NOT_FOUND);
+        }
+    }
+
+    // ── 4-2. 주문 연동 취소/환불 (내부 API) ──────────────────────────────────────
+    @Nested
+    @DisplayName("주문 연동 취소/환불")
+    class OrderLinkedTransition {
+
+        @Test
+        @DisplayName("cancelByOrder - 가게 사유 취소면 PAID → CANCELED")
+        void cancelByOrder() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+
+            paymentService.cancelByOrder(created.orderId(), "사장님 미수락");
+
+            Payment reloaded = paymentRepository.findById(created.paymentId()).orElseThrow();
+            assertThat(reloaded.getStatus()).isEqualTo(PaymentStatus.CANCELED);
+            assertThat(reloaded.getCanceledReason()).isEqualTo("사장님 미수락");
+        }
+
+        @Test
+        @DisplayName("refundByOrder - 고객 요청 취소면 PAID → REFUNDED")
+        void refundByOrder() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+
+            paymentService.refundByOrder(created.orderId(), "고객 5분내 취소");
+
+            Payment reloaded = paymentRepository.findById(created.paymentId()).orElseThrow();
+            assertThat(reloaded.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+            assertThat(reloaded.getRefundedReason()).isEqualTo("고객 5분내 취소");
+        }
+
+        @Test
+        @DisplayName("cancelByOrder - PAID 가 아니면 PAYMENT_NOT_CANCELABLE")
+        void cancelByOrderNotPaid() {
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+            paymentService.refundByOrder(created.orderId(), "먼저 환불"); // PAID 아님으로 만들기
+
+            assertThatThrownBy(() -> paymentService.cancelByOrder(created.orderId(), "재취소"))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_NOT_CANCELABLE);
+        }
+
+        @Test
+        @DisplayName("cancelByOrder - 결제가 없는 주문이면 조용히 무시(예외 없음)")
+        void cancelByOrderNoPayment() {
+            Order order = persistOrder(CUSTOMER_ID, 27000); // 결제 미생성
+
+            paymentService.cancelByOrder(order.getId(), "결제 없음");
+
+            assertThat(paymentRepository.existsByOrder_Id(order.getId())).isFalse();
         }
     }
 

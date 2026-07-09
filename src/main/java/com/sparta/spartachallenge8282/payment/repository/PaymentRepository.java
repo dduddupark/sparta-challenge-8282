@@ -26,6 +26,9 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     /** 해당 주문에 결제가 이미 존재하는지 (중복 결제 방지) */
     boolean existsByOrder_Id(UUID orderId);
 
+    /** 멱등 키로 결제 조회 (동일 키 재요청 시 최초 결과 반환용). DB 유니크 제약과 동일하게 삭제 여부 무관 조회. */
+    Optional<Payment> findByIdempotencyKey(String idempotencyKey);
+
     /** 전체 결제 목록 (삭제되지 않은 것만) */
     Page<Payment> findByDeletedAtIsNull(Pageable pageable);
 

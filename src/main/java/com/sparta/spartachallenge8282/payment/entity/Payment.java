@@ -56,6 +56,13 @@ public class Payment extends BaseEntity {
     @Column(name = "transaction_id", nullable = false, unique = true, length = 100)
     private String transactionId;
 
+    /**
+     * 멱등 키. 동일 키의 재요청은 결제를 새로 생성하지 않고 최초 결과를 그대로 반환한다.
+     * 키를 보내지 않은 요청은 null(유니크 제약상 다중 null 허용). 키 저장 시 유니크 제약이 중복을 방지한다.
+     */
+    @Column(name = "idempotency_key", unique = true, length = 100)
+    private String idempotencyKey;
+
     private LocalDateTime paidAt;
 
     private LocalDateTime canceledAt;
@@ -73,12 +80,13 @@ public class Payment extends BaseEntity {
 
     @Builder
     private Payment(Order order, Long amount, PaymentMethod method, PaymentStatus status,
-                    String transactionId, LocalDateTime paidAt) {
+                    String transactionId, String idempotencyKey, LocalDateTime paidAt) {
         this.order = order;
         this.amount = amount;
         this.method = method;
         this.status = status;
         this.transactionId = transactionId;
+        this.idempotencyKey = idempotencyKey;
         this.paidAt = paidAt;
     }
 
