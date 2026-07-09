@@ -28,6 +28,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmailAndDeletedAtIsNull(String email);
 
     /**
+     * 사용자 존재 여부 확인 (탈퇴하지 않은 유저 대상)
+     */
+    boolean existsByIdAndDeletedAtIsNull(Long id);
+
+    /**
      * [관리자용] 사용자 목록 전체 조회
      */
     Page<User> findAllByDeletedAtIsNull(Pageable pageable);
