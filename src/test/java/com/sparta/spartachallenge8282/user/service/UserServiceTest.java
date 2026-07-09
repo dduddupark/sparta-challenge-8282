@@ -6,7 +6,9 @@ import com.sparta.spartachallenge8282.global.security.JwtProvider;
 import com.sparta.spartachallenge8282.user.entity.User;
 import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest;
 import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
 import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -154,6 +156,178 @@ class UserServiceTest {
 
             // then
             assertThat(result.role()).isEqualTo(UserRole.CUSTOMER);
+        }
+    }
+
+    // ── 로그인 / 로그아웃 / 토큰 재발급 ────────────────────────────────────────
+
+    @Nested
+    @DisplayName("로그인 (login)")
+    class LoginTest {
+
+        private User makeUser() {
+            User user = User.builder()
+                    .email("test@sparta.com")
+                    .password("encodedPassword")
+                    .nickname("코딩하는토끼")
+                    .address("서울시 강남구")
+                    .role(UserRole.CUSTOMER)
+                    .build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            return user;
+        }
+
+        @Test
+        @DisplayName("정상 로그인 성공 - AccessToken + RefreshToken 반환")
+        void login_success() {
+            // given
+            LoginRequest request = new LoginRequest("test@sparta.com", "Password123!");
+            User user = makeUser();
+
+            given(userRepository.findByEmailAndDeletedAtIsNull(request.email()))
+                    .willReturn(java.util.Optional.of(user));
+            given(passwordEncoder.matches(request.password(), user.getPassword()))
+                    .willReturn(true);
+            given(jwtProvider.createAccessToken(user.getId(), user.getEmail(), "ROLE_CUSTOMER"))
+                    .willReturn("Bearer accessToken");
+            given(jwtProvider.createRefreshToken(user.getEmail()))
+                    .willReturn("refreshToken");
+
+            // when
+            LoginResponse result = userService.login(request);
+
+            // then
+            assertThat(result.accessToken()).isEqualTo("Bearer accessToken");
+            assertThat(result.refreshToken()).isEqualTo("refreshToken");
+            verify(userRepository).findByEmailAndDeletedAtIsNull(request.email());
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 이메일 - INVALID_CREDENTIALS 예외 발생")
+        void login_emailNotFound_throwsException() {
+            // given
+            LoginRequest request = new LoginRequest("none@sparta.com", "Password123!");
+            given(userRepository.findByEmailAndDeletedAtIsNull(request.email()))
+                    .willReturn(java.util.Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
+        }
+
+        @Test
+        @DisplayName("비밀번호 불일치 - INVALID_CREDENTIALS 예외 발생")
+        void login_wrongPassword_throwsException() {
+            // given
+            LoginRequest request = new LoginRequest("test@sparta.com", "wrongPassword!");
+            User user = makeUser();
+            given(userRepository.findByEmailAndDeletedAtIsNull(request.email()))
+                    .willReturn(java.util.Optional.of(user));
+            given(passwordEncoder.matches(request.password(), user.getPassword()))
+                    .willReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> userService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_CREDENTIALS));
+        }
+    }
+
+    @Nested
+    @DisplayName("로그아웃 (logout)")
+    class LogoutTest {
+
+        @Test
+        @DisplayName("정상 로그아웃 - RefreshToken 삭제")
+        void logout_success() {
+            // given
+            User user = User.builder()
+                    .email("test@sparta.com").password("encoded")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.updateRefreshToken("someRefreshToken");
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L))
+                    .willReturn(java.util.Optional.of(user));
+
+            // when
+            userService.logout(1L);
+
+            // then
+            assertThat(user.getRefreshToken()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("토큰 재발급 (reissue)")
+    class ReissueTest {
+
+        @Test
+        @DisplayName("정상 재발급 - 새 AccessToken + RefreshToken 반환")
+        void reissue_success() {
+            // given
+            String oldRefreshToken = "validRefreshToken";
+            User user = User.builder()
+                    .email("test@sparta.com").password("encoded")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.updateRefreshToken(oldRefreshToken);
+
+            given(jwtProvider.validateRefreshToken(oldRefreshToken)).willReturn("test@sparta.com");
+            given(userRepository.findByEmailAndDeletedAtIsNull("test@sparta.com"))
+                    .willReturn(java.util.Optional.of(user));
+            given(jwtProvider.createAccessToken(1L, "test@sparta.com", "ROLE_CUSTOMER"))
+                    .willReturn("Bearer newAccessToken");
+            given(jwtProvider.createRefreshToken("test@sparta.com"))
+                    .willReturn("newRefreshToken");
+
+            // when
+            LoginResponse result = userService.reissue(oldRefreshToken);
+
+            // then
+            assertThat(result.accessToken()).isEqualTo("Bearer newAccessToken");
+            assertThat(result.refreshToken()).isEqualTo("newRefreshToken");
+            assertThat(user.getRefreshToken()).isEqualTo("newRefreshToken"); // DB 갱신 확인
+        }
+
+        @Test
+        @DisplayName("유효하지 않은 RefreshToken - INVALID_TOKEN 예외 발생")
+        void reissue_invalidToken_throwsException() {
+            // given
+            given(jwtProvider.validateRefreshToken("invalidToken")).willReturn(null);
+
+            // when & then
+            assertThatThrownBy(() -> userService.reissue("invalidToken"))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_TOKEN));
+        }
+
+        @Test
+        @DisplayName("탈취된 RefreshToken - DB 불일치 시 토큰 무효화 후 예외 발생")
+        void reissue_stolenToken_clearsAndThrows() {
+            // given
+            String stolenToken = "stolenRefreshToken";
+            User user = User.builder()
+                    .email("test@sparta.com").password("encoded")
+                    .nickname("토끼").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+            user.updateRefreshToken("differentTokenInDB"); // DB에는 다른 토큰 저장
+
+            given(jwtProvider.validateRefreshToken(stolenToken)).willReturn("test@sparta.com");
+            given(userRepository.findByEmailAndDeletedAtIsNull("test@sparta.com"))
+                    .willReturn(java.util.Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.reissue(stolenToken))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.INVALID_TOKEN));
+
+            assertThat(user.getRefreshToken()).isNull(); // 보안상 토큰 즉시 삭제 확인
         }
     }
 }

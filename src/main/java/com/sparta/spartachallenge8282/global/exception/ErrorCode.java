@@ -43,6 +43,7 @@ public enum ErrorCode {
     INVALID_PASSWORD(10104, HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
     INVALID_SIGNUP_ROLE(10105, HttpStatus.BAD_REQUEST, "회원가입 시 CUSTOMER 또는 OWNER만 선택 가능합니다."),
     ALREADY_DELETED_USER(10106, HttpStatus.BAD_REQUEST, "이미 탈퇴한 회원입니다."),
+    INVALID_CREDENTIALS(10107, HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
 
 
     // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────
