@@ -72,7 +72,8 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/stores/**", "/api/v1/products/**",
-                                "/api/v1/regions/**", "/api/v1/categories/**").permitAll()
+                                "/api/v1/regions/**", "/api/v1/categories/**",
+                                "/api/v1/menus/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
