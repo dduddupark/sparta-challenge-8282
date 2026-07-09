@@ -40,6 +40,8 @@ public class SecurityConfig {
      * 인증 없이 접근 가능한 경로 화이트리스트 (v1 API 설계 기준 반영)
      */
     private static final String[] PUBLIC_URLS = {
+            // 배포 헬스체크 (인증과 무관하게 항상 200 응답)
+            "/actuator/health",
             "/api/users/signup",
             "/api/users/login",
             // User 로그인 기능 구현 전 주문 생성 테스트를 위한 임시 허용
