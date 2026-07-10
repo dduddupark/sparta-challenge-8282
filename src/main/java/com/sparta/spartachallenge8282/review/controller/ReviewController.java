@@ -2,6 +2,8 @@ package com.sparta.spartachallenge8282.review.controller;
 
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
+import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
 import com.sparta.spartachallenge8282.review.dto.request.ReviewUpdateRequestDto;
 import com.sparta.spartachallenge8282.review.dto.response.ReviewResponseDto;
@@ -15,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -25,14 +28,17 @@ import java.util.UUID;
 public class ReviewController {
 
     private final ReviewService reviewService;
+    private final OrderRepository orderRepository;
 
     // 리뷰 작성
     @PostMapping("/reviews")
     public ResponseEntity<ApiResponse<ReviewResultResponseDto>> createReview(
-            @RequestParam Long userId, // TODO: JWT 완성되면 @AuthenticationPrincipal로 교체
-            @RequestParam UUID storeId,
-            @Valid @RequestBody ReviewCreateRequestDto dto) {
-        ReviewResultResponseDto response = reviewService.createReview(dto, userId, storeId);
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody ReviewCreateRequestDto requestDto) {
+
+        Long userId = userDetails.userId();
+
+        ReviewResultResponseDto response = reviewService.createReview(requestDto, userId);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -64,10 +70,10 @@ public class ReviewController {
     @PatchMapping("/reviews/{reviewId}")
     public ResponseEntity<ApiResponse<ReviewResultResponseDto>> updateReview(
             @PathVariable UUID reviewId,
-            @RequestParam Long userId, // TODO: JWT 완성되면 @AuthenticationPrincipal로 교체
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody ReviewUpdateRequestDto requestDto) {
 
-        ReviewResultResponseDto response = reviewService.updateReview(reviewId, userId, requestDto);
+        ReviewResultResponseDto response = reviewService.updateReview(reviewId, userDetails.userId(), requestDto);
 
         return ResponseEntity.ok(ApiResponse.success("리뷰가 수정되었습니다.", response));
     }
@@ -76,9 +82,10 @@ public class ReviewController {
     @DeleteMapping("/reviews/{reviewId}")
     public ResponseEntity<ApiResponse<Void>> deleteReview(
             @PathVariable UUID reviewId,
-            @RequestParam Long userId) { // TODO: JWT 완성되면 @AuthenticationPrincipal로 교체
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
 
-        reviewService.deleteReview(reviewId, userId);
+        reviewService.deleteReview(reviewId, userDetails.userId());
 
         return ResponseEntity.ok(ApiResponse.success("리뷰가 삭제되었습니다."));
     }

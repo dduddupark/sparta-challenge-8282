@@ -98,10 +98,10 @@ public enum ErrorCode {
     MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
 
     // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
-    INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
-    NOT_DELIVERED(80002, HttpStatus.BAD_REQUEST, "배달완료 상태의 주문만 리뷰를 작성할 수 있습니다."),
-    NOT_ORDER_OWNER(80003, HttpStatus.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다."),
-    ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
+    REVIEW_INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
+    REVIEW_NOT_DELIVERED(80002, HttpStatus.BAD_REQUEST, "배달완료 상태의 주문만 리뷰를 작성할 수 있습니다."),
+    REVIEW_NOT_ORDER_OWNER(80003, HttpStatus.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다."),
+    REVIEW_ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
     NOT_REVIEW_OWNER(80005, HttpStatus.FORBIDDEN, "본인이 작성한 리뷰만 수정/삭제할 수 있습니다."),
     REVIEW_NOT_FOUND(80006, HttpStatus.NOT_FOUND, "존재하지 않는 리뷰입니다."),
 
