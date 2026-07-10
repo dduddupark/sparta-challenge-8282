@@ -2,6 +2,8 @@ package com.sparta.spartachallenge8282.store.domain;
 
 import com.sparta.spartachallenge8282.category.domain.Category;
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.user.entity.User;
 import jakarta.persistence.*;
@@ -129,16 +131,40 @@ public class Store extends BaseEntity {
         this.rejectionReason = null;
     }
 
-
+    /**
+     * 가게 등록 신청 승인
+     */
     public void approve() {
         this.storeStatus = StoreStatus.APPROVED;
+        this.approvedAt = LocalDateTime.now();
+
+        this.rejectedAt = null;
+        this.rejectionReason = null;
     }
 
-    public void reject() {
+    /**
+     * 가게 등록 신청 거절
+     */
+    public void reject(String rejectionReason) {
         this.storeStatus = StoreStatus.REJECTED;
+        this.rejectedAt = LocalDateTime.now();
+        this.rejectionReason = rejectionReason;
+
+        this.approvedAt = null;
     }
 
     public void changeOpenStatus(boolean isOpen) {
         this.isOpen = isOpen;
     }
+
+    /**
+     * 승인 또는 거절은 PENDING 상태에서만 가능
+     */
+    private void validateStoreStatus() {
+        if(this.storeStatus != StoreStatus.PENDING){
+            throw new CustomException(ErrorCode.INVALID_STORE_STATUS);
+        }
+    }
+
+
 }
