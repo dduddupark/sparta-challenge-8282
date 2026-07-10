@@ -185,9 +185,13 @@ public class UserService {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.softDelete(userId); // 내 식별자로 탈퇴 기록 (BaseEntity)
-        user.clearRefreshToken(); // 탈퇴 시 토큰 무효화
-        log.info("[Withdrawal] 회원 탈퇴 완료. userId={}", userId);
+        if (user.getRole() == UserRole.MASTER) {
+            throw new CustomException(ErrorCode.MASTER_CANNOT_BE_DELETED);
+        }
+
+        user.softDelete(userId);
+        user.clearRefreshToken();
+        log.info("[User Withdraw] 회원 탈퇴 처리 완료. userId={}", userId);
     }
 
     // ── 3. 관리자(Manager) 비즈니스 로직 ─────────────────────────────────────────
@@ -226,6 +230,10 @@ public class UserService {
         User user = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (user.getRole() == UserRole.MASTER) {
+            throw new CustomException(ErrorCode.MASTER_CANNOT_BE_DELETED);
+        }
+
         user.softDelete(adminUserId); // 삭제를 지시한 관리자 ID 기록
         user.clearRefreshToken();
         log.info("[Admin Force Delete] 회원 강제 삭제 처리. targetUserId={}, adminUserId={}", targetUserId, adminUserId);
@@ -245,6 +253,13 @@ public class UserService {
         if (request.role() == UserRole.MASTER || request.role() == UserRole.MANAGER) {
             if (executorRole != UserRole.MASTER) {
                 throw new CustomException(ErrorCode.ACCESS_DENIED);
+            }
+        }
+
+        // 부여하려는 역할이 MASTER일 경우, 이미 MASTER가 존재하는지 확인 (자신이 이미 MASTER인 경우는 제외)
+        if (request.role() == UserRole.MASTER && user.getRole() != UserRole.MASTER) {
+            if (userRepository.existsByRoleAndDeletedAtIsNull(UserRole.MASTER)) {
+                throw new CustomException(ErrorCode.ALREADY_EXISTS_MASTER);
             }
         }
 

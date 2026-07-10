@@ -45,6 +45,8 @@ public enum ErrorCode {
     ALREADY_DELETED_USER(10106, HttpStatus.BAD_REQUEST, "이미 탈퇴한 회원입니다."),
     INVALID_CREDENTIALS(10107, HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     DUPLICATE_PASSWORD(10108, HttpStatus.BAD_REQUEST, "기존 비밀번호와 동일하게 변경할 수 없습니다."),
+    ALREADY_EXISTS_MASTER(10109, HttpStatus.BAD_REQUEST, "이미 MASTER 권한을 가진 사용자가 존재합니다."),
+    MASTER_CANNOT_BE_DELETED(10110, HttpStatus.BAD_REQUEST, "MASTER 권한을 가진 사용자는 탈퇴/삭제할 수 없습니다."),
 
 
     // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────

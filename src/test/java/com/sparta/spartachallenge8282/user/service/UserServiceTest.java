@@ -571,6 +571,49 @@ class UserServiceTest {
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));
         }
+
+        @Test
+        @DisplayName("MASTER 권한을 가진 회원은 탈퇴할 수 없음 - MASTER_CANNOT_BE_DELETED 예외 발생")
+        void withdraw_master_throwsException() {
+            // given
+            User user = User.builder()
+                    .email("master@sparta.com").password("encoded")
+                    .nickname("마스터").address("서울").role(UserRole.MASTER).build();
+            ReflectionTestUtils.setField(user, "id", 1L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(1L))
+                    .willReturn(java.util.Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.withdraw(1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.MASTER_CANNOT_BE_DELETED));
+        }
+    }
+
+    @Nested
+    @DisplayName("회원 강제 삭제 (deleteUser)")
+    class DeleteUserTest {
+
+        @Test
+        @DisplayName("MASTER 권한을 가진 회원은 강제 삭제할 수 없음 - MASTER_CANNOT_BE_DELETED 예외 발생")
+        void deleteUser_master_throwsException() {
+            // given
+            User targetUser = User.builder()
+                    .email("master2@sparta.com").password("encoded")
+                    .nickname("마스터2").address("서울").role(UserRole.MASTER).build();
+            ReflectionTestUtils.setField(targetUser, "id", 2L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(2L))
+                    .willReturn(java.util.Optional.of(targetUser));
+
+            // when & then
+            assertThatThrownBy(() -> userService.deleteUser(2L, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.MASTER_CANNOT_BE_DELETED));
+        }
     }
 
     // ── 6. 관리자 권한 변경 ──────────────────────────────────────────────────────
@@ -637,6 +680,27 @@ class UserServiceTest {
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));
+        }
+
+        @Test
+        @DisplayName("MASTER 권한 부여 시 이미 MASTER가 존재하면 ALREADY_EXISTS_MASTER 예외 발생")
+        void changeRole_grantMaster_alreadyExists_throwsException() {
+            // given
+            User targetUser = User.builder()
+                    .email("test@sparta.com").password("encoded")
+                    .nickname("일반").address("서울").role(UserRole.CUSTOMER).build();
+            ReflectionTestUtils.setField(targetUser, "id", 2L);
+
+            given(userRepository.findByIdAndDeletedAtIsNull(2L)).willReturn(java.util.Optional.of(targetUser));
+            given(userRepository.existsByRoleAndDeletedAtIsNull(UserRole.MASTER)).willReturn(true);
+
+            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MASTER);
+
+            // when & then
+            assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MASTER))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
+                            .isEqualTo(ErrorCode.ALREADY_EXISTS_MASTER));
         }
     }
 }
