@@ -50,6 +50,10 @@ public enum ErrorCode {
     // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────
     STORE_NOT_FOUND(20001, HttpStatus.NOT_FOUND, "가게를 찾을 수 없습니다."),
     STORE_CLOSED(20002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
+    INVALID_STORE_STATUS(20003, HttpStatus.CONFLICT, "이미 처리되었거나 처리할 수 없는 가게 등록 상태입니다."),
+    REJECTION_REASON_REQUIRED(20004, HttpStatus.BAD_REQUEST, "가게 등록 거절 사유는 필수입니다."),
+    STORE_NOT_APPROVED(20005, HttpStatus.BAD_REQUEST, "승인된 가게만 영업 상태를 변경할 수 있습니다."),
+    INVALID_STORE_APPLICANT_ROLE(20006, HttpStatus.FORBIDDEN, "CUSTOMER 또는 OWNER만 가게 등록을 신청할 수 있습니다."),
 
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
