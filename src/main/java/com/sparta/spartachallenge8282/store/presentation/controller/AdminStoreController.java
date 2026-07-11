@@ -26,7 +26,7 @@ import java.util.UUID;
  * 관리자의 가게 등록 관리
  */
 @RestController
-@RequestMapping("/api/v1/admin/store")
+@RequestMapping("/api/v1/admin/store-applications")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('MANAGER', 'MASTER')")
 public class AdminStoreController {
@@ -39,7 +39,6 @@ public class AdminStoreController {
      * 가게 등록 신청 승인
      */
     @PatchMapping("/{storeId}/approve")
-    @PreAuthorize("hasAnyRole('MANAGER', 'MASTER')")
     public ResponseEntity<ApiResponse<StoreApplicationProcessResponse>> approveStore(
             @PathVariable UUID storeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails

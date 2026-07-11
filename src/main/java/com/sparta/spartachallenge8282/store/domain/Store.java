@@ -23,7 +23,6 @@ import java.util.UUID;
 @Table(name = "p_store")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLRestriction("deleted_at IS NULL")
 public class Store extends BaseEntity {
 
     @Id
@@ -157,14 +156,7 @@ public class Store extends BaseEntity {
         this.isOpen = isOpen;
     }
 
-    /**
-     * 승인 또는 거절은 PENDING 상태에서만 가능
-     */
-    private void validateStoreStatus() {
-        if(this.storeStatus != StoreStatus.PENDING){
-            throw new CustomException(ErrorCode.INVALID_STORE_STATUS);
-        }
-    }
+
 
 
 }
