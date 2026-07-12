@@ -67,7 +67,7 @@ public class AdminUserController {
         String roleCode = adminDetails.role().substring(5);
         UserRole executorRole = UserRole.valueOf(roleCode);
 
-        userService.changeRole(userId, request, executorRole);
-        return ResponseEntity.ok(ApiResponse.success("역할 변경 완료"));
+        String message = userService.changeRole(userId, request, executorRole);
+        return ResponseEntity.ok(ApiResponse.success(message));
     }
 }

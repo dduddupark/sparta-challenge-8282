@@ -92,11 +92,12 @@ class PaymentServiceIntegrationTest {
     }
 
     private UserDetailsImpl customer(Long userId) {
-        return new UserDetailsImpl(userId, "customer" + userId + "@test.com", "CUSTOMER");
+        // 실제 JwtAuthFilter 가 주입하는 authority 형태(ROLE_ 접두사)와 동일하게 구성
+        return new UserDetailsImpl(userId, "customer" + userId + "@test.com", UserRole.CUSTOMER.getAuthority());
     }
 
     private UserDetailsImpl owner() {
-        return new UserDetailsImpl(9L, "owner@test.com", "OWNER");
+        return new UserDetailsImpl(9L, "owner@test.com", UserRole.OWNER.getAuthority());
     }
 
     /** 예시 주문 + 결제(PAID) 생성 후 결제 응답 반환. */

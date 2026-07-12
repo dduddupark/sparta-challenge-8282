@@ -21,3 +21,7 @@ jwt:
   secret: sparta-orderfront-secret-key-must-be-at-least-32-characters
   access-expiration-ms: 3600000      # 액세스 토큰 만료: 1시간
   refresh-expiration-ms: 604800000   # 리프레시 토큰 만료: 7일
+
+gemini:
+  api-key: ${GEMINI_API_KEY:dummy-key-for-ci}
+  api-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent

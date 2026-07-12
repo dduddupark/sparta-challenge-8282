@@ -52,12 +52,11 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
 
-    // 롤 문자열 (UserDetailsImpl.getRole() 원문 — ROLE_ 접두사 없음 가정)
-    //TODO User Enum 있으면 교체해줘야함
-    private static final String ROLE_CUSTOMER = "CUSTOMER";
-    private static final String ROLE_OWNER    = "OWNER";
-    private static final String ROLE_MANAGER  = "MANAGER";
-    private static final String ROLE_MASTER   = "MASTER";
+    // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값)
+    private static final String ROLE_CUSTOMER = "ROLE_CUSTOMER";
+    private static final String ROLE_OWNER    = "ROLE_OWNER";
+    private static final String ROLE_MANAGER  = "ROLE_MANAGER";
+    private static final String ROLE_MASTER   = "ROLE_MASTER";
 
     /**
      * 결제 생성. {@code amount} 는 주문 금액과 일치해야 한다.

@@ -2,6 +2,9 @@ package com.sparta.spartachallenge8282.review.service;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.enums.OrderStatus;
+import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
 import com.sparta.spartachallenge8282.review.dto.request.ReviewUpdateRequestDto;
 import com.sparta.spartachallenge8282.review.dto.response.ReviewResponseDto;
@@ -22,14 +25,32 @@ import java.util.UUID;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final OrderRepository orderRepository;
 
     @Transactional
-    public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId, UUID storeId) {
+    public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId) {
+
+        Order order = orderRepository.findById(requestDto.orderId())
+                .orElseThrow(()-> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        if(!order.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.REVIEW_NOT_ORDER_OWNER);
+        }
+
+        if(order.getOrderStatus() != OrderStatus.COMPLETED) {
+            throw new CustomException(ErrorCode.REVIEW_NOT_DELIVERED);
+        }
+
+        if(reviewRepository.existsByOrderId(requestDto.orderId())) {
+            throw new CustomException(ErrorCode.REVIEW_ALREADY_EXISTS);
+        }
+
         Review review = Review.builder()
                 .requestDto(requestDto)
                 .userId(userId)
-                .storeId(storeId)
+                .storeId(order.getStoreId())
                 .build();
+
 
         //생성이 완료되면 생성된 리뷰의 아이디를 반환
         return ReviewResultResponseDto.from(reviewRepository.save(review).getId());

@@ -31,9 +31,10 @@ import java.util.UUID;
  * <p>명세: {@code docs/api/api-spec.md} 10장. 에러 코드는 Payment 도메인(60000번대).
  * 응답은 {@link ApiResponse} envelope, 목록은 {@link PageResponse} 로 통일한다.
  *
- * <p><b>권한 표기</b>: 롤은 {@code UserRole} enum 이름(CUSTOMER/OWNER/MANAGER/MASTER)을 그대로
- * 권한 문자열로 사용한다({@link UserDetailsImpl} 참고). 따라서 {@code hasRole}(=ROLE_ 접두사) 대신
- * {@code hasAnyAuthority} 로 검증한다. 실제 토큰의 롤 클레임 표기가 확정되면 재검토 필요.
+ * <p><b>권한 표기</b>: 인증 주체의 authority 는 {@code UserRole.getAuthority()} 결과인
+ * {@code ROLE_} 접두사 형태다({@code ROLE_CUSTOMER} 등, {@code JwtAuthFilter} 참고).
+ * 따라서 {@code hasAnyAuthority} 에도 접두사를 포함한 {@code 'ROLE_CUSTOMER'} 형태로 검증한다
+ * (프로젝트 다른 컨트롤러와 동일 컨벤션).
  * 본인/본인 가게 소유 여부 등 데이터 기반 세부 권한은 서비스 계층에서 검증한다.
  */
 @RestController
@@ -45,7 +46,7 @@ public class PaymentController {
     // ── 10.1 결제 생성 ──────────────────────────────────────────────────────────
     @PostMapping("/api/v1/payments")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentCreateResponse> createPayment(
             @Valid @RequestBody PaymentCreateRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -58,7 +59,7 @@ public class PaymentController {
 
     // ── 10.2 주문의 결제 내역 조회 ───────────────────────────────────────────────
     @GetMapping("/api/v1/orders/{orderId}/payment")
-    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'OWNER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_OWNER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentResponse> getPaymentByOrder(
             @PathVariable UUID orderId,
             @AuthenticationPrincipal UserDetailsImpl user
@@ -68,7 +69,7 @@ public class PaymentController {
 
     // ── 10.3 결제 단건 조회 ─────────────────────────────────────────────────────
     @GetMapping("/api/v1/payments/{paymentId}")
-    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'OWNER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_OWNER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentResponse> getPayment(
             @PathVariable UUID paymentId,
             @AuthenticationPrincipal UserDetailsImpl user
@@ -78,7 +79,7 @@ public class PaymentController {
 
     // ── 10.4 결제 전체 목록 조회(관리자) ─────────────────────────────────────────
     @GetMapping("/api/v1/payments")
-    @PreAuthorize("hasAnyAuthority('MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PageResponse<PaymentResponse>> getPayments(
             @RequestParam(required = false) PaymentStatus status,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -89,7 +90,7 @@ public class PaymentController {
 
     // ── 10.5 결제 취소 ──────────────────────────────────────────────────────────
     @PatchMapping("/api/v1/payments/{paymentId}/cancel")
-    @PreAuthorize("hasAnyAuthority('OWNER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_OWNER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentCancelResponse> cancelPayment(
             @PathVariable UUID paymentId,
             @Valid @RequestBody PaymentCancelRequest request,
@@ -100,7 +101,7 @@ public class PaymentController {
 
     // ── 10.6 결제 환불 ──────────────────────────────────────────────────────────
     @PatchMapping("/api/v1/payments/{paymentId}/refund")
-    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentRefundResponse> refundPayment(
             @PathVariable UUID paymentId,
             @Valid @RequestBody PaymentRefundRequest request,
@@ -111,7 +112,7 @@ public class PaymentController {
 
     // ── 10.7 특정 유저 결제 내역 조회(관리자) ────────────────────────────────────
     @GetMapping("/api/v1/users/{userId}/payments")
-    @PreAuthorize("hasAnyAuthority('MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PageResponse<PaymentResponse>> getUserPayments(
             @PathVariable Long userId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -122,7 +123,7 @@ public class PaymentController {
 
     // ── 10.8 고객 본인 결제 목록 조회 ────────────────────────────────────────────
     @GetMapping("/api/v1/payments/me")
-    @PreAuthorize("hasAnyAuthority('CUSTOMER', 'MANAGER', 'MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PageResponse<PaymentResponse>> getMyPayments(
             @AuthenticationPrincipal UserDetailsImpl user,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable

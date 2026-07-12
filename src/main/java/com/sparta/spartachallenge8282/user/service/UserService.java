@@ -237,7 +237,7 @@ public class UserService {
      * 오직 MASTER 권한을 가진 어드민만 관리자 자격(MASTER, MANAGER)을 부여할 수 있다.
      */
     @Transactional
-    public void changeRole(Long targetUserId, ChangeRoleRequest request, UserRole executorRole) {
+    public String changeRole(Long targetUserId, ChangeRoleRequest request, UserRole executorRole) {
         User user = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -251,5 +251,7 @@ public class UserService {
         UserRole oldRole = user.getRole();
         user.updateRole(request.role());
         log.info("[Admin Role Change] 권한 변경 완료. userId={}, {} -> {} (by {})", targetUserId, oldRole, request.role(), executorRole);
+        
+        return String.format("역할 변경 완료 : %s > %s", oldRole.name(), request.role().name());
     }
 }
