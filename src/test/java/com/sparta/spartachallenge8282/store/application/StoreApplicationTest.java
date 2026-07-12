@@ -344,20 +344,32 @@ class StoreServiceTest {
         void getStores_success() {
             PageRequest pageable = PageRequest.of(0, 20);
 
+            Store store = createRealStore();
+
             Page<Store> stores =
                     new PageImpl<>(
-                            List.of(),
+                            List.of(store),
                             pageable,
-                            0
+                            1
                     );
 
-            when(storeRepository.findAll(pageable))
-                    .thenReturn(stores);
+            when(
+                    storeRepository.findAllByOperationStatusAndDeletedAtIsNull(
+                            StoreOperationStatus.ACTIVE,
+                            pageable
+                    )
+            ).thenReturn(stores);
 
-            assertThat(storeService.getStores(pageable))
-                    .isNotNull();
+            PageResponse<UserStoreListResponse> response =
+                    storeService.getStores(pageable);
 
-            verify(storeRepository).findAll(pageable);
+            assertThat(response).isNotNull();
+
+            verify(storeRepository)
+                    .findAllByOperationStatusAndDeletedAtIsNull(
+                            StoreOperationStatus.ACTIVE,
+                            pageable
+                    );
         }
 
         @Test
@@ -365,28 +377,45 @@ class StoreServiceTest {
         void getStore_success() {
             Store store = createRealStore();
 
-            when(storeRepository.findById(storeId))
-                    .thenReturn(Optional.of(store));
+            when(
+                    storeRepository.findByIdAndOperationStatusAndDeletedAtIsNull(
+                            storeId,
+                            StoreOperationStatus.ACTIVE
+                    )
+            ).thenReturn(Optional.of(store));
 
             UserStoreDetailResponse response =
                     storeService.getStore(storeId);
 
             assertThat(response).isNotNull();
 
-            verify(storeRepository).findById(storeId);
+            verify(storeRepository)
+                    .findByIdAndOperationStatusAndDeletedAtIsNull(
+                            storeId,
+                            StoreOperationStatus.ACTIVE
+                    );
         }
 
         @Test
         @DisplayName("존재하지 않는 가게 상세 조회 시 예외가 발생한다")
         void getStore_notFound() {
-            when(storeRepository.findById(storeId))
-                    .thenReturn(Optional.empty());
+
+            when(
+                    storeRepository.findByIdAndOperationStatusAndDeletedAtIsNull(
+                            storeId,
+                            StoreOperationStatus.ACTIVE
+                    )
+            ).thenReturn(Optional.empty());
 
             assertThatThrownBy(() ->
                     storeService.getStore(storeId)
             ).isInstanceOf(CustomException.class);
 
-            verify(storeRepository).findById(storeId);
+            verify(storeRepository)
+                    .findByIdAndOperationStatusAndDeletedAtIsNull(
+                            storeId,
+                            StoreOperationStatus.ACTIVE
+                    );
         }
     }
 
