@@ -57,7 +57,7 @@ public class OwnerStoreController {
     /**
      * 가게 운영 활성화
      */
-    @PatchMapping("/{storeId}/active")
+    @PatchMapping("/{storeId}/activate")
     public ResponseEntity<ApiResponse<?>> activateStore(
             @PathVariable UUID storeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
