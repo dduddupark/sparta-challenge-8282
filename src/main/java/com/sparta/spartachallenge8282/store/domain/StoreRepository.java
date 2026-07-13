@@ -35,6 +35,18 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
             Long ownerId
     );
 
+    /**
+     * 해당 가게가 이 OWNER 소유인지 존재 검증.
+     *
+     * <p>결제 도메인의 OWNER 가게 스코프 권한 검증에 쓰인다
+     * (본인 가게 결제만 조회/취소하도록 — {@code payment.order.storeId} 대조).
+     * 엔티티 로딩 없이 존재 여부만 확인하는 경량 쿼리.
+     */
+    boolean existsByIdAndOwner_IdAndDeletedAtIsNull(
+            UUID storeId,
+            Long ownerId
+    );
+
 
     /**
      * ACTIVE 상태가 된 가게만 일반 유저에게 노출한다.

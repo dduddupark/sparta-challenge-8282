@@ -15,6 +15,7 @@ import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentR
 import com.sparta.spartachallenge8282.payment.domain.Payment;
 import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
 import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,10 +38,12 @@ import java.util.UUID;
  * <p>인터페이스/구현체 분리 없이 단일 {@code @Service} 클래스로 구성한다.
  * 금액 일치 검증, 중복 결제 방지, 상태 전이, 접근 권한(본인 주문 여부)을 담당한다.
  *
+ * <p><b>OWNER 가게 스코프 검증</b>: OWNER 는 <b>본인 가게 결제만</b> 조회/취소할 수 있다.
+ * {@code payment.order.storeId} 가 요청 OWNER 소유 가게인지 {@link StoreRepository} 로 대조하여
+ * 타 가게 결제 접근(IDOR)을 차단한다. (Store 도메인 연동 완료 — 과거 TODO 해소)
+ *
  * <p><b>제약(도메인 미완성)</b>
  * <ul>
- *   <li>OWNER "본인 가게" 검증: Store 도메인이 없어 롤 레벨(@PreAuthorize)까지만 검증하고
- *       가게 소유 여부는 TODO 로 남긴다.</li>
  *   <li>PG 연동 부재: transactionId 는 임시 채번한다.</li>
  *   <li>Idempotency-Key: {@code p_payment.idempotency_key} 유니크 제약을 1차 방어선으로 삼는다.
  *       사전 조회로 중복을 판별하지 않고 <b>먼저 INSERT 를 시도</b>한 뒤, 유니크 제약 위반이 나면
@@ -56,6 +59,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final StoreRepository storeRepository;
     private final PlatformTransactionManager txManager;
 
     // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값과 동일).
@@ -286,8 +290,11 @@ public class PaymentService {
      */
     private void validateReadAccess(Payment payment, UserDetailsImpl user) {
         String role = user.role();
-        if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role) || ROLE_OWNER.equals(role)) {
-            // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
+        if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role)) {
+            return;
+        }
+        if (ROLE_OWNER.equals(role)) {
+            validateOwnerStoreScope(payment, user); // 본인 가게 결제만
             return;
         }
         if (ROLE_CUSTOMER.equals(role)) {
@@ -307,7 +314,7 @@ public class PaymentService {
             return;
         }
         if (ROLE_OWNER.equals(role)) {
-            // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
+            validateOwnerStoreScope(payment, user); // 본인 가게 결제만 취소
             return;
         }
         throw new CustomException(ErrorCode.ACCESS_DENIED);
@@ -332,6 +339,17 @@ public class PaymentService {
     /** 결제가 걸린 주문이 요청자 본인 것인지 검증. */
     private void validateOrderOwner(Payment payment, UserDetailsImpl user) {
         if (!payment.getOrder().getUserId().equals(user.userId())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    /**
+     * 결제가 걸린 주문의 가게가 요청 OWNER 소유인지 검증.
+     * {@code order.storeId} 로 Store 소유 여부를 대조해 타 가게 결제 접근(IDOR)을 차단한다.
+     */
+    private void validateOwnerStoreScope(Payment payment, UserDetailsImpl user) {
+        UUID storeId = payment.getOrder().getStoreId();
+        if (!storeRepository.existsByIdAndOwner_IdAndDeletedAtIsNull(storeId, user.userId())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }
