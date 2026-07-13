@@ -3,16 +3,12 @@ package com.sparta.spartachallenge8282.user.service;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
+import com.sparta.spartachallenge8282.user.dto.request.*;
+import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
+import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
 import com.sparta.spartachallenge8282.user.entity.User;
 import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
-import com.sparta.spartachallenge8282.user.dto.request.LoginRequest;
-import com.sparta.spartachallenge8282.user.dto.request.SignUpRequest;
-import com.sparta.spartachallenge8282.user.dto.request.UpdateUserRequest;
-import com.sparta.spartachallenge8282.user.dto.request.ChangePasswordRequest;
-import com.sparta.spartachallenge8282.user.dto.request.ChangeRoleRequest;
-import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -281,7 +277,7 @@ class UserServiceTest {
 
             given(jwtProvider.resolveToken(oldRefreshToken)).willReturn(oldRefreshToken);
             given(jwtProvider.validateRefreshToken(oldRefreshToken)).willReturn("test@sparta.com");
-            given(userRepository.findByEmailAndDeletedAtIsNull("test@sparta.com"))
+            given(userRepository.findByEmailAndDeletedAtIsNullForUpdate("test@sparta.com"))
                     .willReturn(java.util.Optional.of(user));
             given(jwtProvider.createAccessToken(1L, "test@sparta.com", "ROLE_CUSTOMER"))
                     .willReturn("newAccessToken");
@@ -324,7 +320,7 @@ class UserServiceTest {
 
             given(jwtProvider.resolveToken(stolenToken)).willReturn(stolenToken);
             given(jwtProvider.validateRefreshToken(stolenToken)).willReturn("test@sparta.com");
-            given(userRepository.findByEmailAndDeletedAtIsNull("test@sparta.com"))
+            given(userRepository.findByEmailAndDeletedAtIsNullForUpdate("test@sparta.com"))
                     .willReturn(java.util.Optional.of(user));
 
             // when & then
@@ -519,7 +515,7 @@ class UserServiceTest {
 
             given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true); // 현재 비밀번호 일치 (첫번째 검증)
             // 두번째 검증 (새 비밀번호 == 기존 비밀번호) - 같은 matches() 호출이므로 두 번 연속 true 반환하도록 설정
-            given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true, true); 
+            given(passwordEncoder.matches("oldPassword", "oldPassword")).willReturn(true, true);
 
             // when & then
             assertThatThrownBy(() -> userService.changePassword(1L, request))

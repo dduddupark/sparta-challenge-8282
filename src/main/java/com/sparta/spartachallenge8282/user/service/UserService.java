@@ -1,5 +1,6 @@
 package com.sparta.spartachallenge8282.user.service;
 
+import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
@@ -7,15 +8,14 @@ import com.sparta.spartachallenge8282.user.dto.request.*;
 import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
 import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
 import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.sparta.spartachallenge8282.global.common.PageResponse;
 
 /**
  * User 도메인 서비스 레이어.
@@ -95,7 +95,7 @@ public class UserService {
     }
 
     /**
-     * Access Token 재발급.
+     * Access Token 재발급
      * 전달된 Refresh Token의 만료/유효성 및 DB 값 일치 여부를 검증한 후 신규 Access Token을 반환한다.
      */
     @Transactional
@@ -110,7 +110,7 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        User user = userRepository.findByEmailAndDeletedAtIsNull(email)
+        User user = userRepository.findByEmailAndDeletedAtIsNullForUpdate(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // DB에 기록된 토큰과 다른 경우 (중복 재발급 혹은 탈취 가능성 차단)
@@ -180,6 +180,7 @@ public class UserService {
      * 회원 탈퇴 (Soft Delete).
      * 로그아웃과 탈퇴 처리를 동시에 진행하여 세션을 즉각 무효화한다.
      */
+    //TODO : accesstoken이 디비에 없어서?
     @Transactional
     public void withdraw(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
@@ -256,6 +257,7 @@ public class UserService {
             }
         }
 
+        //TODO: 이미 마스터가 있는데 왜 조회를 해?
         // 부여하려는 역할이 MASTER일 경우, 이미 MASTER가 존재하는지 확인 (자신이 이미 MASTER인 경우는 제외)
         if (request.role() == UserRole.MASTER && user.getRole() != UserRole.MASTER) {
             if (userRepository.existsByRoleAndDeletedAtIsNull(UserRole.MASTER)) {
@@ -266,7 +268,7 @@ public class UserService {
         UserRole oldRole = user.getRole();
         user.updateRole(request.role());
         log.info("[Admin Role Change] 권한 변경 완료. userId={}, {} -> {} (by {})", targetUserId, oldRole, request.role(), executorRole);
-        
+
         return String.format("역할 변경 완료 : %s > %s", oldRole.name(), request.role().name());
     }
 }

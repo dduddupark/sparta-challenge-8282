@@ -73,6 +73,7 @@ public class JwtProvider {
     public String createAccessToken(Long userId, String email, String role) {
         Date now = new Date();
         return Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(email)
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_ROLE, role)
@@ -91,6 +92,7 @@ public class JwtProvider {
     public String createRefreshToken(String email) {
         Date now = new Date();
         return Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshExpirationMs))

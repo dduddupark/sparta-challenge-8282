@@ -1,9 +1,12 @@
 package com.sparta.spartachallenge8282.user.repository;
 
 import com.sparta.spartachallenge8282.user.entity.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 
@@ -16,6 +19,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * 로그인 및 일반 사용자 조회
      */
     Optional<User> findByEmailAndDeletedAtIsNull(String email);
+
+    /**
+     * 토큰 재발급 시 동시성 제어를 위한 조회
+     * 메서드명을 구분하기 위해 @Query로 JPQL을 명시하고 PESSIMISTIC_WRITE 락을 적용한다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+                select u
+                from User u
+                where u.email = :email
+                  and u.deletedAt is null
+            """)
+    Optional<User> findByEmailAndDeletedAtIsNullForUpdate(@org.springframework.data.repository.query.Param("email") String email);
 
     /**
      * 회원 정보 수정 및 단건 사용자 조회
