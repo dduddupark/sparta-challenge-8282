@@ -45,12 +45,44 @@ public class OrderService {
      * - 메뉴 가격, 이름, 가게, 판매 상태 제공*/
     private final MenuRepository menuRepository;
 
-    //주문 생성
+    /*
+    주문 생성 흐름 생성(메서드 이용한 함수 호출)
+    orderitem생성 -> 메뉴 총액 계산 -> 주문 생성 -> 연관관계 -> 저장
+     */
     public OrderCreateResponseDto createOrder(
             Long userId,
             OrderCreateRequestDto request
     ) {
-        List<OrderItem> orderItems = request.orderItems()
+        // 메뉴 검증 및 dto 변환
+        // 리스트를 이용하여 여러 메뉴 조회
+        List<OrderItem> orderItems = createOrderItems(request);
+
+        // 금액 계산
+        int menuTotalPrice =
+                calculateMenuTotalPrice(orderItems);
+
+        // 위 두 정보를 이용해 주문 생성
+        Order order = createOrderEntity(
+                userId,
+                request,
+                menuTotalPrice
+        );
+
+        // 양방향 연관관계 설정
+        orderItems.forEach(order::addOrderItem);
+
+        Order savedOrder = orderRepository.save(order);
+
+        return OrderCreateResponseDto.from(savedOrder);
+    }
+
+    /*
+    요청 DTO의 상품 목록을 실제 OrderItem 목록으로 변환
+     */
+    private List<OrderItem> createOrderItems(
+            OrderCreateRequestDto request
+    ) {
+        return request.orderItems()
                 .stream()
                 .map(itemRequest ->
                         createOrderItem(
@@ -59,33 +91,8 @@ public class OrderService {
                         )
                 )
                 .toList();
-
-        int menuTotalPrice = orderItems.stream()
-                .mapToInt(OrderItem::getTotalPrice)
-                .sum();
-
-        int discountAmount = DEFAULT_DISCOUNT_AMOUNT;
-        int deliveryFee = DEFAULT_DELIVERY_FEE;
-
-        Order order = Order.create(
-                createOrderNumber(),
-                userId,
-                request.storeId(),
-                menuTotalPrice,
-                discountAmount,
-                deliveryFee,
-                request.deliveryAddress(),
-                request.deliveryDetailAddress(),
-                request.requestMessage()
-        );
-
-        orderItems.forEach(order::addOrderItem);
-
-        Order savedOrder = orderRepository.save(order);
-
-        return OrderCreateResponseDto.from(savedOrder);
     }
-
+    // 주문 당시 메뉴 정보를 orderitem에 주입
     private OrderItem createOrderItem(
             UUID requestStoreId,
             OrderItemRequestDto itemRequest
@@ -103,6 +110,7 @@ public class OrderService {
         );
     }
 
+    //삭제 되지 않은 주문인지 검증
     private Menu findOrderableMenu(
             UUID menuId,
             UUID requestStoreId
@@ -118,6 +126,7 @@ public class OrderService {
 
         return menu;
     }
+    // 메뉴가 요청하는 가게가 맞는지 판단
     private void validateMenuStore(
             Menu menu,
             UUID requestStoreId
@@ -128,6 +137,7 @@ public class OrderService {
             );
         }
     }
+    // 숨김 처리 된 메뉴인지 판단
     private void validateMenuVisibility(Menu menu) {
         if (menu.isHidden()) {
             throw new CustomException(
@@ -135,6 +145,7 @@ public class OrderService {
             );
         }
     }
+    // 현재 판매 중인 메뉴인지 판단
     private void validateMenuStatus(Menu menu) {
         if (menu.getStatus() != MenuStatus.ON_SALE) {
             throw new CustomException(
@@ -142,14 +153,35 @@ public class OrderService {
             );
         }
     }
-    /*
-     * 메뉴 총 금액 계산
-     * 지금은 MenuRepository가 없으므로 임시값.
-     * 나중에는 menuId로 메뉴를 조회해서 가격 * 수량으로 계산해야 한다.
-     */
-    private int calculateMenuTotalPrice(OrderCreateRequestDto request) {
-        return 0;
+
+    // 메뉴 총 금액 계산
+    private int calculateMenuTotalPrice(
+            List<OrderItem> orderItems
+    ) {
+        return orderItems.stream()
+                .mapToInt(OrderItem::getTotalPrice)
+                .sum();
     }
+
+    // 주문 정보와 서버에서 계산한 금액으로 최종 주문 생성
+    private Order createOrderEntity(
+            Long userId,
+            OrderCreateRequestDto request,
+            int menuTotalPrice
+    ) {
+        return Order.create(
+                createOrderNumber(),
+                userId,
+                request.storeId(),
+                menuTotalPrice,
+                DEFAULT_DISCOUNT_AMOUNT,
+                DEFAULT_DELIVERY_FEE,
+                request.deliveryAddress(),
+                request.deliveryDetailAddress(),
+                request.requestMessage()
+        );
+    }
+
 
     /*
      * 주문번호 생성
