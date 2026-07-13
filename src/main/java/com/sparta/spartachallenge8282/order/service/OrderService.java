@@ -3,8 +3,13 @@ package com.sparta.spartachallenge8282.order.service;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.menu.domain.Menu;
+import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
+import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
+import com.sparta.spartachallenge8282.order.dto.request.OrderItemRequestDto;
 import com.sparta.spartachallenge8282.order.dto.response.*;
 import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.entity.OrderItem;
 import com.sparta.spartachallenge8282.order.entity.OrderStatusHistory;
 import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
@@ -34,15 +39,31 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository orderStatusHistoryRepository;
 
-    /*
-     * 주문 생성
-     * 현재 단계에서 메뉴 금액은 임시로 0원 처리
-     */
+    /*주문 생성 시 실제 메뉴 정보 조회
+     * MenuRepository의 역할:
+     * - 메뉴 존재 여부 확인
+     * - 메뉴 가격, 이름, 가게, 판매 상태 제공*/
+    private final MenuRepository menuRepository;
+
+    //주문 생성
     public OrderCreateResponseDto createOrder(
             Long userId,
             OrderCreateRequestDto request
     ) {
-        int menuTotalPrice = calculateMenuTotalPrice(request);
+        List<OrderItem> orderItems = request.orderItems()
+                .stream()
+                .map(itemRequest ->
+                        createOrderItem(
+                                request.storeId(),
+                                itemRequest
+                        )
+                )
+                .toList();
+
+        int menuTotalPrice = orderItems.stream()
+                .mapToInt(OrderItem::getTotalPrice)
+                .sum();
+
         int discountAmount = DEFAULT_DISCOUNT_AMOUNT;
         int deliveryFee = DEFAULT_DELIVERY_FEE;
 
@@ -58,11 +79,69 @@ public class OrderService {
                 request.requestMessage()
         );
 
+        orderItems.forEach(order::addOrderItem);
+
         Order savedOrder = orderRepository.save(order);
 
         return OrderCreateResponseDto.from(savedOrder);
     }
 
+    private OrderItem createOrderItem(
+            UUID requestStoreId,
+            OrderItemRequestDto itemRequest
+    ) {
+        Menu menu = findOrderableMenu(
+                itemRequest.menuId(),
+                requestStoreId
+        );
+
+        return new OrderItem(
+                menu.getId(),
+                menu.getName(),
+                menu.getPrice(),
+                itemRequest.quantity()
+        );
+    }
+
+    private Menu findOrderableMenu(
+            UUID menuId,
+            UUID requestStoreId
+    ) {
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(menuId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.MENU_NOT_FOUND)
+                );
+
+        validateMenuStore(menu, requestStoreId);
+        validateMenuVisibility(menu);
+        validateMenuStatus(menu);
+
+        return menu;
+    }
+    private void validateMenuStore(
+            Menu menu,
+            UUID requestStoreId
+    ) {
+        if (!menu.getStoreId().equals(requestStoreId)) {
+            throw new CustomException(
+                    ErrorCode.MENU_STORE_MISMATCH
+            );
+        }
+    }
+    private void validateMenuVisibility(Menu menu) {
+        if (menu.isHidden()) {
+            throw new CustomException(
+                    ErrorCode.HIDDEN_MENU_NOT_ORDERABLE
+            );
+        }
+    }
+    private void validateMenuStatus(Menu menu) {
+        if (menu.getStatus() != MenuStatus.ON_SALE) {
+            throw new CustomException(
+                    ErrorCode.MENU_NOT_ORDERABLE
+            );
+        }
+    }
     /*
      * 메뉴 총 금액 계산
      * 지금은 MenuRepository가 없으므로 임시값.
@@ -279,4 +358,7 @@ public class OrderService {
             throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
         }
     }
+
+
+
 }
