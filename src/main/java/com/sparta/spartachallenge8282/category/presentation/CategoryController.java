@@ -12,6 +12,7 @@ import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,7 +48,7 @@ public class CategoryController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getCategoryList(
             @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<CategoryResponse> data =
                 PageResponse.from(categoryService.getCategoryList(keyword, pageable));
         return ResponseEntity.ok(ApiResponse.success("카테고리 목록 조회 성공", data));

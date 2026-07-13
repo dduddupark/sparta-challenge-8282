@@ -12,6 +12,7 @@ import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionRes
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,7 +49,7 @@ public class RegionController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<RegionResponse>>> getRegionList(
             @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<RegionResponse> data =
                 PageResponse.from(regionService.getRegionList(keyword, pageable));
         return ResponseEntity.ok(ApiResponse.success("지역 목록 조회 성공", data));

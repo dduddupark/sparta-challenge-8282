@@ -14,6 +14,7 @@ import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuRespons
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,13 +47,14 @@ import java.util.UUID;
  * (NO_MENU_PERMISSION — store 연동 auth 브랜치). 조회는 비로그인 공개(SecurityConfig).
  */
 @RestController
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class MenuController {
 
     private final MenuService menuService;
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
-    @PostMapping("/api/v1/stores/{storeId}/menus")
+    @PostMapping("/stores/{storeId}/menus")
     public ResponseEntity<ApiResponse<MenuCreateResponse>> createMenu(
             @PathVariable UUID storeId,
             @Valid @RequestBody MenuCreateRequest request) {
@@ -60,26 +63,26 @@ public class MenuController {
                 .body(ApiResponse.success("메뉴 생성 완료", new MenuCreateResponse(menuId)));
     }
 
-    @GetMapping("/api/v1/menus/{menuId}")
+    @GetMapping("/menus/{menuId}")
     public ResponseEntity<ApiResponse<MenuResponse>> getMenu(@PathVariable UUID menuId) {
         return ResponseEntity.ok(
                 ApiResponse.success("메뉴 조회 성공", menuService.getMenu(menuId)));
     }
 
-    @GetMapping("/api/v1/stores/{storeId}/menus")
+    @GetMapping("/stores/{storeId}/menus")
     public ResponseEntity<ApiResponse<PageResponse<MenuResponse>>> getMenuList(
             @PathVariable UUID storeId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) MenuStatus status,
             @RequestParam(required = false) MenuBadge badge,
-            @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<MenuResponse> data =
                 PageResponse.from(menuService.getMenuList(storeId, keyword, status, badge, pageable));
         return ResponseEntity.ok(ApiResponse.success("메뉴 목록 조회 성공", data));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
-    @PatchMapping("/api/v1/menus/{menuId}")
+    @PatchMapping("/menus/{menuId}")
     public ResponseEntity<ApiResponse<MenuResponse>> updateMenu(
             @PathVariable UUID menuId,
             @Valid @RequestBody MenuUpdateRequest request) {
@@ -88,7 +91,7 @@ public class MenuController {
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
-    @DeleteMapping("/api/v1/menus/{menuId}")
+    @DeleteMapping("/menus/{menuId}")
     public ResponseEntity<ApiResponse<MenuDeleteResponse>> deleteMenu(
             @PathVariable UUID menuId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {

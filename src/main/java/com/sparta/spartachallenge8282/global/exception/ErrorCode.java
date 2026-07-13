@@ -81,6 +81,18 @@ public enum ErrorCode {
     INVALID_MENU_PRICE(40004, HttpStatus.BAD_REQUEST, "메뉴 가격은 0원 이상이어야 합니다."),
     ALREADY_DELETED_MENU(40005, HttpStatus.CONFLICT, "이미 삭제된 메뉴입니다."),
 
+    // ── Menu Option Group (41001 ~ 41999) ────────────────────────────────────
+    OPTION_GROUP_NOT_FOUND(41001, HttpStatus.NOT_FOUND, "옵션 그룹을 찾을 수 없습니다."),
+    NO_OPTION_GROUP_PERMISSION(41002, HttpStatus.FORBIDDEN, "옵션 그룹 관리 권한이 없습니다."),
+    INVALID_OPTION_SELECT_RANGE(41003, HttpStatus.BAD_REQUEST, "옵션 선택 범위가 올바르지 않습니다."),
+    ALREADY_DELETED_OPTION_GROUP(41004, HttpStatus.CONFLICT, "이미 삭제된 옵션 그룹입니다."),
+
+    // ── Menu Option (42001 ~ 42999) ──────────────────────────────────────────
+    OPTION_NOT_FOUND(42001, HttpStatus.NOT_FOUND, "옵션을 찾을 수 없습니다."),
+    NO_OPTION_PERMISSION(42002, HttpStatus.FORBIDDEN, "옵션 관리 권한이 없습니다."),
+    INVALID_OPTION_PRICE(42003, HttpStatus.BAD_REQUEST, "옵션 추가 금액은 0원 이상이어야 합니다."),
+    ALREADY_DELETED_OPTION(42004, HttpStatus.CONFLICT, "이미 삭제된 옵션입니다."),
+
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
     ORDER_NOT_FOUND(50001, HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."),

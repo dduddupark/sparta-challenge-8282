@@ -74,7 +74,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/stores/**", "/api/v1/products/**",
                                 "/api/v1/regions/**", "/api/v1/categories/**",
-                                "/api/v1/menus/**").permitAll()
+                                "/api/v1/menus/**", "/api/v1/option-groups/**",
+                                "/api/v1/options/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

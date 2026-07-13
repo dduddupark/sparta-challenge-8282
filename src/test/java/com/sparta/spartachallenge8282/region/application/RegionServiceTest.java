@@ -138,15 +138,16 @@ class RegionServiceTest {
     void 목록조회_keyword가_null이면_빈문자열로_검색한다() {
         // given
         Pageable pageable = PageRequest.of(0, 3);
-        Page<Region> page = new PageImpl<>(List.of(), pageable, 0);
+        Pageable normalized = PageRequest.of(0, 10);
+        Page<Region> page = new PageImpl<>(List.of(), normalized, 0);
 
-        given(regionRepository.searchRegions("", true, pageable)).willReturn(page);
+        given(regionRepository.searchRegions("", true, normalized)).willReturn(page);
 
         // when
         regionService.getRegionList(null, pageable);
 
         // then
-        verify(regionRepository).searchRegions("", true, pageable);
+        verify(regionRepository).searchRegions("", true, normalized);
     }
 
     @Test
