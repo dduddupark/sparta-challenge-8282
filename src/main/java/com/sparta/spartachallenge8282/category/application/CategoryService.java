@@ -8,6 +8,7 @@ import com.sparta.spartachallenge8282.category.presentation.dto.response.Categor
 import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public UUID createCategory(CategoryCreateRequest request) {
@@ -88,7 +90,9 @@ public class CategoryService {
             throw new CustomException(ErrorCode.ALREADY_DELETED_CATEGORY);
         }
 
-        // TODO: CATEGORY_IN_USE — 이 category 를 참조하는 store 가 있으면 예외 (StoreRepository 필요, Store 머지 후)
+        if (storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)) {
+            throw new CustomException(ErrorCode.CATEGORY_IN_USE);
+        }
 
         category.softDelete(userId);
         return category.getDeletedAt();

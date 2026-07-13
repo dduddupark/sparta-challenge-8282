@@ -8,6 +8,7 @@ import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionUpdateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class RegionService {
 
     private final RegionRepository regionRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public UUID createRegion(RegionCreateRequest request) {
@@ -84,7 +86,9 @@ public class RegionService {
             throw new CustomException(ErrorCode.ALREADY_DELETED_REGION);
         }
 
-        // TODO: REGION_IN_USE — 이 region을 참조하는 store가 있으면 예외 (StoreRepository 필요, Store 머지 후)
+        if (storeRepository.existsByRegion_IdAndDeletedAtIsNull(id)) {
+            throw new CustomException(ErrorCode.REGION_IN_USE);
+        }
 
         region.softDelete(userId);
         return region.getDeletedAt();

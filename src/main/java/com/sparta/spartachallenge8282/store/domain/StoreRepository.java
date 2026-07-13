@@ -61,5 +61,8 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
             StoreOperationStatus operationStatus
     );
 
+    boolean existsByCategory_IdAndDeletedAtIsNull(UUID categoryId);
+
+    boolean existsByRegion_IdAndDeletedAtIsNull(UUID regionId);
 
 }

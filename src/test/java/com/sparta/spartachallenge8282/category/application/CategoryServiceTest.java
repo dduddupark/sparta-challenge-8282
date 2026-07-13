@@ -7,6 +7,7 @@ import com.sparta.spartachallenge8282.category.presentation.dto.request.Category
 import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +39,9 @@ class CategoryServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private StoreRepository storeRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -232,6 +236,7 @@ class CategoryServiceTest {
         ReflectionTestUtils.setField(category, "id", id);
 
         given(categoryRepository.findById(id)).willReturn(Optional.of(category));
+        given(storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)).willReturn(false);
 
         // when
         LocalDateTime deletedAt = categoryService.deleteCategory(id, userId);
@@ -241,6 +246,27 @@ class CategoryServiceTest {
         assertThat(category.isDeleted()).isTrue();
         assertThat(category.getDeletedAt()).isEqualTo(deletedAt);
         assertThat(category.getDeletedBy()).isEqualTo(userId);
+    }
+
+    @Test
+    void 카테고리삭제_사용중인_카테고리면_CATEGORY_IN_USE를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Category category = Category.builder()
+                .name("한식").sortOrder(1).isActive(true)
+                .build();
+        ReflectionTestUtils.setField(category, "id", id);
+
+        given(categoryRepository.findById(id)).willReturn(Optional.of(category));
+        given(storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)).willReturn(true);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> categoryService.deleteCategory(id, 1L));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CATEGORY_IN_USE);
+        assertThat(category.isDeleted()).isFalse();
     }
 
     @Test
