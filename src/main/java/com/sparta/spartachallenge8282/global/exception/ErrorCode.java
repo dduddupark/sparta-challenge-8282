@@ -81,6 +81,7 @@ public enum ErrorCode {
     PAYMENT_NOT_CANCELABLE(60007, HttpStatus.CONFLICT, "취소할 수 없는 결제 상태입니다."),
     PAYMENT_NOT_REFUNDABLE(60008, HttpStatus.CONFLICT, "환불할 수 없는 결제 상태입니다."),
     PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+    PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010, HttpStatus.CONFLICT, "동일한 멱등키로 다른 결제 요청이 접수되었습니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────

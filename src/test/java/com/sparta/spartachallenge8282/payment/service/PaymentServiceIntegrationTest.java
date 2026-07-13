@@ -154,39 +154,8 @@ class PaymentServiceIntegrationTest {
                     .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        @Test
-        @DisplayName("멱등 - 같은 Idempotency-Key 재요청이면 새 결제 없이 최초 결과를 그대로 반환한다")
-        void idempotentReplay() {
-            Order order = persistOrder(CUSTOMER_ID, 27000);
-            String key = "idem-key-replay";
-
-            PaymentCreateResponse first = paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
-
-            // 같은 키로 재요청 (재시도 시나리오)
-            PaymentCreateResponse retry = paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
-
-            // 동일한 결제가 반환되고, DB 에도 결제는 1건뿐
-            assertThat(retry.paymentId()).isEqualTo(first.paymentId());
-            assertThat(paymentRepository.count()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("실패 - 이미 결제된 주문이면 PAYMENT_ALREADY_PROCESSED")
-        void alreadyProcessed() {
-            Order order = persistOrder(CUSTOMER_ID, 27000);
-            paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD),
-                    CUSTOMER_ID, null);
-
-            PaymentCreateRequest again =
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD);
-
-            assertThatThrownBy(() -> paymentService.createPayment(again, CUSTOMER_ID, null))
-                    .isInstanceOf(CustomException.class)
-                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_ALREADY_PROCESSED);
-        }
+        // 멱등 재요청 / 중복 결제(유니크 제약 위반 경로)는 커밋된 결제가 있어야 재현되므로
+        // 롤백 기반의 본 통합 테스트가 아니라 커밋 기반 {@code PaymentIdempotencyTest} 에서 검증한다.
     }
 
     // ── 2. 주문의 결제 내역 조회 ─────────────────────────────────────────────────

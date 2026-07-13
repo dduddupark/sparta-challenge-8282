@@ -2,6 +2,8 @@ package com.sparta.spartachallenge8282.payment.controller;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.payment.dto.request.PaymentCancelRequest;
 import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
@@ -49,9 +51,14 @@ public class PaymentController {
     @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_MANAGER', 'ROLE_MASTER')")
     public ApiResponse<PaymentCreateResponse> createPayment(
             @Valid @RequestBody PaymentCreateRequest request,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
             @AuthenticationPrincipal UserDetailsImpl user
     ) {
+        // Idempotency-Key 는 필수. 헤더 누락은 MissingRequestHeaderException(400) 으로,
+        // 값이 공백이면 여기서 400 으로 거부한다(공백 키는 멱등 보장을 무력화하므로).
+        if (idempotencyKey.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_PAYMENT_REQUEST);
+        }
         PaymentCreateResponse data =
                 paymentService.createPayment(request, user.userId(), idempotencyKey);
         return ApiResponse.success("결제가 완료되었습니다.", data);
