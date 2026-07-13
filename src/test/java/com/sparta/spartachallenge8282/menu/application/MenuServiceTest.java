@@ -15,6 +15,7 @@ import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRe
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -98,7 +99,7 @@ class MenuServiceTest {
         UUID storeId = UUID.randomUUID();
         MenuCreateRequest request = new MenuCreateRequest(
                 "후라이드", "바삭한 후라이드", 18000, 1,
-                MenuStatus.ON_SALE, MenuBadge.NONE, false);
+                MenuStatus.ON_SALE, MenuBadge.NONE);
 
         UUID generatedId = UUID.randomUUID();
         Menu saved = sampleMenu(storeId);
@@ -118,7 +119,7 @@ class MenuServiceTest {
         UUID storeId = UUID.randomUUID();
         MenuCreateRequest request = new MenuCreateRequest(
                 "후라이드", "바삭한 후라이드", -1000, 1,
-                null, null, false);
+                null, null);
 
         // when
         CustomException exception = assertThrows(CustomException.class,
@@ -127,6 +128,25 @@ class MenuServiceTest {
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_MENU_PRICE);
         verify(menuRepository, never()).save(any());
+    }
+
+    @Test
+    void 메뉴생성_isAiGenerated는_항상_false로_저장된다() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        MenuCreateRequest request = new MenuCreateRequest(
+                "후라이드", "바삭한 후라이드", 18000, 1,
+                MenuStatus.ON_SALE, MenuBadge.NONE);
+
+        given(menuRepository.save(any(Menu.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        menuService.createMenu(storeId, request);
+
+        // then
+        ArgumentCaptor<Menu> captor = ArgumentCaptor.forClass(Menu.class);
+        verify(menuRepository).save(captor.capture());
+        assertThat(captor.getValue().isAiGenerated()).isFalse();
     }
 
     // ── 단건 조회 ──────────────────────────────────────────────────────────────
@@ -224,6 +244,100 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_MENU_PRICE);
+    }
+
+    @Test
+    void 메뉴수정_다른_description이면_교체하고_isAiGenerated를_false로_내린다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Menu menu = sampleMenu(UUID.randomUUID());
+        ReflectionTestUtils.setField(menu, "id", id);
+        menu.applyAiDescription("AI 설명");
+        MenuUpdateRequest request = new MenuUpdateRequest(
+                null, "직접 수정한 설명", null, null, null, null);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        MenuResponse result = menuService.updateMenu(id, request);
+
+        // then
+        assertThat(result.description()).isEqualTo("직접 수정한 설명");
+        assertThat(result.isAiGenerated()).isFalse();
+    }
+
+    @Test
+    void 메뉴수정_동일_description이면_isAiGenerated를_유지한다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Menu menu = sampleMenu(UUID.randomUUID());
+        ReflectionTestUtils.setField(menu, "id", id);
+        menu.applyAiDescription("AI 설명");
+        MenuUpdateRequest request = new MenuUpdateRequest(
+                null, "AI 설명", null, null, null, null);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        MenuResponse result = menuService.updateMenu(id, request);
+
+        // then
+        assertThat(result.description()).isEqualTo("AI 설명");
+        assertThat(result.isAiGenerated()).isTrue();
+    }
+
+    @Test
+    void 메뉴수정_description이_null이면_기존_설명과_isAiGenerated를_유지한다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Menu menu = sampleMenu(UUID.randomUUID());
+        ReflectionTestUtils.setField(menu, "id", id);
+        menu.applyAiDescription("AI 설명");
+        MenuUpdateRequest request = new MenuUpdateRequest(
+                null, null, 19000, null, null, null);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        MenuResponse result = menuService.updateMenu(id, request);
+
+        // then
+        assertThat(result.description()).isEqualTo("AI 설명");
+        assertThat(result.price()).isEqualTo(19000);
+        assertThat(result.isAiGenerated()).isTrue();
+    }
+
+    // ── AI 설명 반영 ──────────────────────────────────────────────────────────
+
+    @Test
+    void AI메뉴설명반영_성공하면_description을_수정하고_isAiGenerated를_true로_변경한다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Menu menu = sampleMenu(UUID.randomUUID());
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        MenuResponse result = menuService.applyAiDescription(id, "AI가 생성한 바삭한 후라이드 설명");
+
+        // then
+        assertThat(result.description()).isEqualTo("AI가 생성한 바삭한 후라이드 설명");
+        assertThat(result.isAiGenerated()).isTrue();
+    }
+
+    @Test
+    void AI메뉴설명반영_없는id는_MENU_NOT_FOUND를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.empty());
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.applyAiDescription(id, "AI 설명"));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
     }
 
     // ── 삭제 ────────────────────────────────────────────────────────────────
