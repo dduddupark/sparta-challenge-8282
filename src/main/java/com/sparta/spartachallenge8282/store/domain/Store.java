@@ -88,7 +88,16 @@ public class Store extends BaseEntity {
     @Column(name = "is_open", nullable = false)
     private boolean isOpen;
 
-
+    /**
+     * 승인 후 실제 가게의 운영 상태
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "operation_status",
+            nullable = false,
+            length = 30
+    )
+    private StoreOperationStatus operationStatus;
 
     @Builder
     private Store(
@@ -123,6 +132,11 @@ public class Store extends BaseEntity {
         // 기본값
         this.storeRating = BigDecimal.ZERO;
         this.reviewCount = 0;
+        /*
+         * 승인 직후에는 운영 준비 상태이며
+         * 고객에게 노출되지 않고 주문도 받지 않는다.
+         */
+        this.operationStatus = StoreOperationStatus.PREPARING;
         this.isOpen = false;
     }
 
@@ -147,6 +161,9 @@ public class Store extends BaseEntity {
                 .build();
     }
 
+    public void activate(){
+        this.operationStatus = StoreOperationStatus.ACTIVE;
+    }
 
 
     public void changeOpenStatus(boolean isOpen) {

@@ -34,4 +34,10 @@ public interface MenuRepository extends JpaRepository<Menu, UUID> {
                            @Param("badge") MenuBadge badge,
                            @Param("includeHidden") boolean includeHidden,
                            Pageable pageable);
+
+    /**
+     * 가게 활성화 조건
+     * 가게에 매뉴 1개이상 존재
+     */
+    boolean existsByStoreIdAndDeletedAtIsNull(UUID storeId);
 }

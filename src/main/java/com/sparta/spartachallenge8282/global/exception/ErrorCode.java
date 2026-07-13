@@ -57,6 +57,9 @@ public enum ErrorCode {
     STORE_NOT_APPROVED(20005, HttpStatus.BAD_REQUEST, "승인된 가게만 영업 상태를 변경할 수 있습니다."),
     INVALID_STORE_APPLICANT_ROLE(20006, HttpStatus.FORBIDDEN, "CUSTOMER 또는 OWNER만 가게 등록을 신청할 수 있습니다."),
     STORE_APPLICATION_NOT_FOUND(20007, HttpStatus.NOT_FOUND, "등록 신청된 가게를 찾을 수 없습니다."),
+    STORE_ACTIVATION_NOT_ALLOWED(20008, HttpStatus.CONFLICT, "운영 준비 중인 가게만 활성화할 수 있습니다."),
+    STORE_NOT_ACTIVE(20009, HttpStatus.CONFLICT, "활성화된 가게만 영업 상태를 변경할 수 있습니다."),
+    STORE_MENU_REQUIRED(20010, HttpStatus.BAD_REQUEST, "가게를 활성화하려면 메뉴를 한 개 이상 등록해야 합니다."),
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),

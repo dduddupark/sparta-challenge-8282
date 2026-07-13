@@ -6,10 +6,12 @@ import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.store.domain.*;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreApplicationRequest;
+import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreOpenStatusRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreRejectRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.*;
 import com.sparta.spartachallenge8282.user.entity.User;
@@ -31,6 +33,7 @@ public class StoreService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final StoreApplicationRepository storeApplicationRepository;
+    private final MenuRepository menuRepository;
 
     //가게 등록 및 조회 절차
     /**
@@ -105,6 +108,74 @@ public class StoreService {
                 .orElseThrow(() ->
                         new CustomException(ErrorCode.STORE_APPLICATION_NOT_FOUND)
                 );
+    }
+
+    // 가게 활성화
+    /**
+     * 메뉴가 한 개이상 있을 때 가게 활성화 가능
+     */
+    @Transactional
+    public void activateStore(UUID storeId, UserDetailsImpl userDetails) {
+        Store store = storeRepository
+                .findByIdAndOwner_IdAndDeletedAtIsNull(
+                        storeId,
+                        userDetails.userId()
+                )
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.STORE_NOT_APPROVED)
+                );
+        if (store.getOperationStatus() != StoreOperationStatus.PREPARING) {
+            throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);
+        }
+
+        boolean hasMenu = menuRepository.existsByStoreIdAndDeletedAtIsNull(storeId);
+        if(!hasMenu) {
+            throw new CustomException(ErrorCode.STORE_MENU_REQUIRED);
+        }
+        store.activate();
+    }
+
+    /**
+     * ACTIVE 상테일 때 가게를 오픈하여 주문을 받을 수 있다.
+     * 가게 영업을 종료할 수 있다..
+     */
+    @Transactional
+    public void changeOpenStatus(UUID storeId, StoreOpenStatusRequest request, UserDetailsImpl userDetails) {
+        Store store = storeRepository
+                .findByIdAndOwner_IdAndDeletedAtIsNull(
+                        storeId,
+                        userDetails.userId()
+                )
+                .orElseThrow(()->
+                        new CustomException(ErrorCode.STORE_NOT_FOUND)
+                );
+        if (store.getOperationStatus() != StoreOperationStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);
+        }
+        store.changeOpenStatus(request.isOpen());
+    }
+
+
+    /**
+     * 본인 가게 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<OwnerStoreListResponse> getMyStores(UserDetailsImpl userDetails, Pageable pageable) {
+        Page<Store> stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userDetails.userId(), pageable);
+        return PageResponse.from(stores.map(OwnerStoreListResponse::from));
+    }
+
+    /**
+     * 본인 가게 상세 조회
+     */
+    @Transactional(readOnly = true)
+    public OwnerStoreDetailResponse getMyStore(UUID storeId, UserDetailsImpl userDetails) {
+        Store store = storeRepository
+                .findByIdAndOwner_IdAndDeletedAtIsNull(storeId, userDetails.userId())
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.STORE_NOT_FOUND)
+                );
+        return OwnerStoreDetailResponse.from(store);
     }
 
 
@@ -197,23 +268,25 @@ public class StoreService {
 
     //일반 사용자 및 비회원 사용자의 가게 조회 ==========================
 
+    //일반 사용자 및 비회원 사용자의 가게 조회 ==========================
+
     /**
      * 가게 목록 조회
-     *
+     * 활성화된 가게만 노출시킨다.
      */
     public PageResponse<UserStoreListResponse> getStores(Pageable pageable) {
-        Page<Store> stores = storeRepository.findAll(pageable);
+        Page<Store> stores = storeRepository.findAllByOperationStatusAndDeletedAtIsNull(StoreOperationStatus.ACTIVE, pageable);
         return PageResponse.from(stores.map(UserStoreListResponse::from));
     }
 
     /**
      * 가게 상세 조회
-     *
+     * 활성화된 가게만 노출시킨다.
      */
     public UserStoreDetailResponse getStore(UUID storeId) {
-        Store store = storeRepository.findById(storeId).orElseThrow(
+        Store store = storeRepository.findByIdAndOperationStatusAndDeletedAtIsNull(storeId, StoreOperationStatus.ACTIVE).orElseThrow(
                 ()-> new CustomException(ErrorCode.STORE_NOT_FOUND)
-                );
+        );
         return  UserStoreDetailResponse.from(store);
     }
 
