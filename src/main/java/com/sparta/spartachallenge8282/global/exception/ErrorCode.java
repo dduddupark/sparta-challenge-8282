@@ -60,6 +60,10 @@ public enum ErrorCode {
     STORE_ACTIVATION_NOT_ALLOWED(20008, HttpStatus.CONFLICT, "운영 준비 중인 가게만 활성화할 수 있습니다."),
     STORE_NOT_ACTIVE(20009, HttpStatus.CONFLICT, "활성화된 가게만 영업 상태를 변경할 수 있습니다."),
     STORE_MENU_REQUIRED(20010, HttpStatus.BAD_REQUEST, "가게를 활성화하려면 메뉴를 한 개 이상 등록해야 합니다."),
+    STORE_UPDATE_NOT_ALLOWED(20011, HttpStatus.CONFLICT, "삭제 요청 또는 삭제 처리된 가게는 수정할 수 없습니다."),
+    STORE_CLOSE_ALREADY_REQUESTED(20012, HttpStatus.CONFLICT, "이미 삭제 요청된 가게입니다."),
+    STORE_ALREADY_CLOSED(20013, HttpStatus.CONFLICT, "이미 삭제 처리된 가게입니다."),
+    STORE_CLOSE_NOT_REQUESTED(20014, HttpStatus.CONFLICT, "삭제 요청된 가게만 폐점 승인할 수 있습니다."),
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),

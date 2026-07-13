@@ -62,4 +62,5 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     );
 
 
+    Optional<Store> findByIdAndDeletedAtIsNull(UUID storeId);
 }

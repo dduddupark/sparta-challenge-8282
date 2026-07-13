@@ -12,12 +12,18 @@ import java.util.UUID;
 
 public interface StoreApplicationRepository extends JpaRepository<StoreApplication, UUID> {
 
+    /**
+     * 등록 신청한 본인 가게 목록 조회
+     */
     @EntityGraph(attributePaths = {
             "category",
             "region"
     })
     Page<StoreApplication> findAllByApplicant_Id(Long applicantId, Pageable pageable);
 
+    /**
+     * 등록 신청한 본인 가게 상세 조회
+     */
     @EntityGraph(attributePaths = {
             "applicant",
             "category",
