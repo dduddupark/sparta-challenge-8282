@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Check;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -72,8 +73,9 @@ public class Menu extends BaseEntity {
     @Column(nullable = false)
     private boolean isAiGenerated;
 
-    // 파라미터는 wrapper — 기본값이 있는 필드(sortOrder/status/badge/플래그)는 미입력(null) 시 기본값으로 채운다.
+    // 파라미터는 wrapper — 기본값이 있는 필드(sortOrder/status/badge/isHidden)는 미입력(null) 시 기본값으로 채운다.
     // storeId/name/price 는 필수값이라 기본값 없이 그대로 대입한다 (null/음수 검증은 DTO·Service 책임).
+    // isAiGenerated 는 클라이언트 입력이 아니라 서버가 관리하는 출처 값이므로 생성 시 항상 false 로 시작한다.
     @Builder
     public Menu(UUID storeId,
                 String name,
@@ -82,8 +84,7 @@ public class Menu extends BaseEntity {
                 Integer sortOrder,
                 MenuStatus status,
                 MenuBadge badge,
-                Boolean isHidden,
-                Boolean isAiGenerated) {
+                Boolean isHidden) {
         this.storeId = storeId;
         this.name = name;
         this.description = description;
@@ -92,16 +93,17 @@ public class Menu extends BaseEntity {
         this.status = (status != null) ? status : MenuStatus.ON_SALE;
         this.badge = (badge != null) ? badge : MenuBadge.NONE;
         this.isHidden = (isHidden != null) ? isHidden : false;
-        this.isAiGenerated = (isAiGenerated != null) ? isAiGenerated : false;
+        this.isAiGenerated = false;
     }
 
-    /** 메뉴 기본 정보 수정 (부분 수정 — null 인 필드는 변경하지 않는다). */
+    /** 메뉴 기본 정보 수정. description이 실제로 바뀌면 AI 생성 표식을 해제한다. */
     public void updateInfo(String name, String description, Integer price, Integer sortOrder) {
         if (name != null && !name.isBlank()) {
             this.name = name;
         }
-        if (description != null) {
+        if (description != null && !Objects.equals(this.description, description)) {
             this.description = description;
+            this.isAiGenerated = false;
         }
         if (price != null) {
             this.price = price;
@@ -121,6 +123,12 @@ public class Menu extends BaseEntity {
         if (badge != null) {
             this.badge = badge;
         }
+    }
+
+    /** AI 생성 설명을 적용하고 AI 생성 표식을 켠다. */
+    public void applyAiDescription(String description) {
+        this.description = description;
+        this.isAiGenerated = true;
     }
 
     /** 고객 화면에서 숨김 처리. */

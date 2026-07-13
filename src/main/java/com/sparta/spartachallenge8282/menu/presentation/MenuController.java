@@ -6,6 +6,7 @@ import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.menu.application.MenuService;
 import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
 import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
+import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuAiDescriptionUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuCreateResponse;
@@ -88,6 +89,15 @@ public class MenuController {
             @Valid @RequestBody MenuUpdateRequest request) {
         return ResponseEntity.ok(
                 ApiResponse.success("메뉴 수정 완료", menuService.updateMenu(menuId, request)));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
+    @PatchMapping("/menus/{menuId}/ai-description")
+    public ResponseEntity<ApiResponse<MenuResponse>> updateAiDescription(
+            @PathVariable UUID menuId,
+            @Valid @RequestBody MenuAiDescriptionUpdateRequest request) {
+        return ResponseEntity.ok(
+                ApiResponse.success("AI 메뉴 설명 적용 완료", menuService.applyAiDescription(menuId, request.description())));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")

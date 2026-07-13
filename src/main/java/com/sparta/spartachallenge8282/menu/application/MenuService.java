@@ -62,7 +62,6 @@ public class MenuService {
                 .sortOrder(request.sortOrder())
                 .status(request.status())
                 .badge(request.badge())
-                .isAiGenerated(request.isAiGenerated())
                 .build();
 
         return menuRepository.save(menu).getId();
@@ -93,12 +92,24 @@ public class MenuService {
         // TODO(권한, menu-auth 브랜치): OWNER 는 menu.getStoreId() 가 본인 가게인지 확인 → 아니면 NO_MENU_PERMISSION
         validatePrice(request.price());
 
-        // 부분 수정: 엔티티 비즈니스 메서드가 null 필드를 각각 skip 한다 (setter 금지)
+        // 일반 수정에서 description이 다른 값으로 바뀌면 엔티티가 isAiGenerated=false 로 정리한다.
         menu.updateInfo(request.name(), request.description(), request.price(), request.sortOrder());
         menu.changeStatus(request.status());
         menu.changeBadge(request.badge());
 
         return MenuResponse.from(menu);   // 변경감지로 flush 되므로 save 불필요
+    }
+
+    @Transactional
+    public MenuResponse applyAiDescription(UUID menuId, String description) {
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(menuId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
+
+        // isAiGenerated=true 는 AI 설명 적용 경로에서만 서버가 설정한다.
+        // TODO(권한, menu-auth 브랜치): OWNER 는 menu.getStoreId() 가 본인 가게인지 확인 → 아니면 NO_MENU_PERMISSION
+        menu.applyAiDescription(description);
+
+        return MenuResponse.from(menu);
     }
 
     @Transactional

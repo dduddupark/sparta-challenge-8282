@@ -13,7 +13,6 @@ public record MenuCreateRequest(
         @NotNull @PositiveOrZero Integer price,
         @PositiveOrZero Integer sortOrder,
         MenuStatus status,
-        MenuBadge badge,
-        Boolean isAiGenerated
+        MenuBadge badge
 ) {
 }
