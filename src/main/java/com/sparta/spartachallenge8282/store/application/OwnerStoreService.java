@@ -10,7 +10,6 @@ import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.store.domain.Store;
-import com.sparta.spartachallenge8282.store.domain.StoreApplicationRepository;
 import com.sparta.spartachallenge8282.store.domain.StoreOperationStatus;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreOpenStatusRequest;
@@ -97,7 +96,7 @@ public class OwnerStoreService {
                         new CustomException(ErrorCode.STORE_NOT_FOUND)
                 );
         if (store.getOperationStatus() != StoreOperationStatus.ACTIVE) {
-            throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);
+            throw new CustomException(ErrorCode.STORE_NOT_ACTIVE);
         }
         store.changeOpenStatus(request.isOpen());
     }
@@ -111,6 +110,14 @@ public class OwnerStoreService {
                 .findByIdAndOwner_IdAndDeletedAtIsNull(storeId, userDetails.userId())
                 .orElseThrow(() ->
                         new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        //삭제 요청 상태이거나 삭제 상태인 경우 수정 불가
+        if (store.getOperationStatus() == StoreOperationStatus.CLOSE_REQUESTED
+                || store.getOperationStatus() == StoreOperationStatus.CLOSED) {
+            throw new CustomException(
+                    ErrorCode.STORE_UPDATE_NOT_ALLOWED
+            );
+        }
 
         Category category = null;
         if(request.categoryId() != null){
@@ -126,12 +133,7 @@ public class OwnerStoreService {
                             new CustomException(ErrorCode.REGION_NOT_FOUND));
         }
 
-        if (store.getOperationStatus() == StoreOperationStatus.CLOSE_REQUESTED
-                || store.getOperationStatus() == StoreOperationStatus.CLOSED) {
-            throw new CustomException(
-                    ErrorCode.STORE_UPDATE_NOT_ALLOWED
-            );
-        }
+
         store.update(
                 category,
                 region,
@@ -162,8 +164,6 @@ public class OwnerStoreService {
 
         if(store.getOperationStatus() == StoreOperationStatus.CLOSE_REQUESTED){
             throw new CustomException(ErrorCode.STORE_CLOSE_ALREADY_REQUESTED);
-        }else if(store.getOperationStatus() == StoreOperationStatus.CLOSED){
-            throw new CustomException(ErrorCode.STORE_CLOSED);
         }
         store.requestDelete();
     }

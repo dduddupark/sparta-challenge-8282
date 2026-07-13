@@ -6,7 +6,6 @@ import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.store.application.validator.StoreAuthorizationValidator;

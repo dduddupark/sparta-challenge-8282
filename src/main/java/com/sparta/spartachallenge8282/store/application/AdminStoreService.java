@@ -59,8 +59,16 @@ public class AdminStoreService {
      */
     @Transactional(readOnly = true)
     public PageResponse<OwnerStoreListResponse> getStores(StoreOperationStatus status, Pageable pageable) {
-          Page<Store> stores  = storeRepository.findAllByOperationStatusAndDeletedAtIsNull(status, pageable);
-          return PageResponse.from(stores.map(OwnerStoreListResponse::from));
+          Page<Store> stores;
+
+          if(status == null){
+            stores = storeRepository.findAllByDeletedAtIsNull(pageable);
+          }else{
+            stores = storeRepository.findAllByOperationStatusAndDeletedAtIsNull(status, pageable);
+
+          }
+        return PageResponse.from(stores.map(OwnerStoreListResponse::from));
+
 
     }
 
@@ -140,7 +148,8 @@ public class AdminStoreService {
                 .orElseThrow(() ->
                         new CustomException(ErrorCode.STORE_NOT_FOUND)
                 );
-        if(store.getOperationStatus() == StoreOperationStatus.CLOSE_REQUESTED){
+        //삭제 요청 상태일 때 삭제 승인이 가능
+        if(store.getOperationStatus() != StoreOperationStatus.CLOSE_REQUESTED){
             throw new CustomException(
                     ErrorCode.STORE_CLOSE_NOT_REQUESTED
             );

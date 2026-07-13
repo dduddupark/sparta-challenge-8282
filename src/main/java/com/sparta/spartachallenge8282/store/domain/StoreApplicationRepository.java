@@ -1,12 +1,10 @@
 package com.sparta.spartachallenge8282.store.domain;
 
-import io.micrometer.observation.ObservationFilter;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.nio.channels.FileChannel;
 import java.util.Optional;
 import java.util.UUID;
 
