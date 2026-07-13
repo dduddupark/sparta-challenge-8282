@@ -18,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -285,5 +286,22 @@ class MenuServiceTest {
 
         // then — 공개 목록은 숨김 제외(includeHidden=false), keyword 는 null→"" 로 전달
         verify(menuRepository).searchMenus(storeId, "", null, null, false, pageable);
+    }
+
+    @Test
+    void 목록조회_size가_허용값이_아니면_10으로_정규화해_검색한다() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Pageable requested = PageRequest.of(2, 25, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable normalized = PageRequest.of(2, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Menu> page = new PageImpl<>(List.of(), normalized, 0);
+
+        given(menuRepository.searchMenus(storeId, "", null, null, false, normalized)).willReturn(page);
+
+        // when
+        menuService.getMenuList(storeId, null, null, null, requested);
+
+        // then — page/sort 는 유지하고 size 만 10으로 보정한다
+        verify(menuRepository).searchMenus(storeId, "", null, null, false, normalized);
     }
 }

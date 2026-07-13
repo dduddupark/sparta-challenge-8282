@@ -144,15 +144,16 @@ class CategoryServiceTest {
     void 목록조회_keyword가_null이면_빈문자열로_검색한다() {
         // given
         Pageable pageable = PageRequest.of(0, 3);
-        Page<Category> page = new PageImpl<>(List.of(), pageable, 0);
+        Pageable normalized = PageRequest.of(0, 10);
+        Page<Category> page = new PageImpl<>(List.of(), normalized, 0);
 
-        given(categoryRepository.searchCategories("", true, pageable)).willReturn(page);
+        given(categoryRepository.searchCategories("", true, normalized)).willReturn(page);
 
         // when
         categoryService.getCategoryList(null, pageable);
 
         // then
-        verify(categoryRepository).searchCategories("", true, pageable);
+        verify(categoryRepository).searchCategories("", true, normalized);
     }
 
     // ── 수정 ────────────────────────────────────────────────────────────────

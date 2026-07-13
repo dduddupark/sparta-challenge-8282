@@ -2,6 +2,7 @@ package com.sparta.spartachallenge8282.menu.option.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.menu.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.menu.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.menu.option.presentation.dto.request.MenuOptionCreateRequest;
@@ -58,8 +59,9 @@ public class MenuOptionService {
     public Page<MenuOptionResponse> getOptionList(UUID optionGroupId, String keyword, Boolean isActive, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;
         Boolean activeFilter = (isActive == null) ? true : isActive;
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
 
-        return optionRepository.searchOptions(optionGroupId, searchKeyword, activeFilter, pageable)
+        return optionRepository.searchOptions(optionGroupId, searchKeyword, activeFilter, normalizedPageable)
                 .map(MenuOptionResponse::from);
     }
 

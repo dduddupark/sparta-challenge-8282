@@ -14,6 +14,7 @@ import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuRespons
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -74,7 +75,7 @@ public class MenuController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) MenuStatus status,
             @RequestParam(required = false) MenuBadge badge,
-            @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<MenuResponse> data =
                 PageResponse.from(menuService.getMenuList(storeId, keyword, status, badge, pageable));
         return ResponseEntity.ok(ApiResponse.success("메뉴 목록 조회 성공", data));

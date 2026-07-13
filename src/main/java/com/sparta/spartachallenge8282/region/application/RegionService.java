@@ -2,6 +2,7 @@ package com.sparta.spartachallenge8282.region.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
@@ -47,10 +48,11 @@ public class RegionService {
 
     public Page<RegionResponse> getRegionList(String keyword, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // keyword가 없으면 LIKE '%%'로 전체 조회되도록 빈 문자열로 넘긴다.
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
 
         // 공개 조회는 활성 항목만 노출한다.
         // TODO(관리자 확장): 비활성 포함 전체 조회는 admin 엔드포인트에서 searchRegions에 isActive를 전달해 재사용한다.
-        return regionRepository.searchRegions(searchKeyword, true, pageable)
+        return regionRepository.searchRegions(searchKeyword, true, normalizedPageable)
                 .map(RegionResponse::from);
     }
 

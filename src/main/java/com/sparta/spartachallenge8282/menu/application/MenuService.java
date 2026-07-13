@@ -2,6 +2,7 @@ package com.sparta.spartachallenge8282.menu.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
@@ -73,9 +74,10 @@ public class MenuService {
     public Page<MenuResponse> getMenuList(UUID storeId, String keyword,
                                           MenuStatus status, MenuBadge badge, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // null 이면 전체 검색(LIKE '%%')
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
         // 공개 조회는 숨김 메뉴 제외(includeHidden=false).
         // TODO(관리자 확장): 숨김 포함 조회는 admin 엔드포인트에서 includeHidden=true 로 재사용한다.
-        return menuRepository.searchMenus(storeId, searchKeyword, status, badge, false, pageable)
+        return menuRepository.searchMenus(storeId, searchKeyword, status, badge, false, normalizedPageable)
                 .map(MenuResponse::from);
     }
 
