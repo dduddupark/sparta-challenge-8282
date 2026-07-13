@@ -10,20 +10,11 @@ spring:
 
   jpa:
     hibernate:
-      # 스키마 변경은 Flyway 가 담당. Hibernate 는 엔티티↔DB 일치만 검증(validate).
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
     show-sql: true
-
-  # Flyway DB 마이그레이션
-  #  - 기존(운영/개발) DB: baseline-on-migrate 로 V1(baseline) skip 후 V2 부터 적용
-  #  - fresh DB: V1(baseline)부터 순서대로 적용
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 1
 
 jwt:
   # 최소 32자 이상의 비밀키 (운영 환경에서는 환경변수로 주입)

@@ -41,10 +41,6 @@ dependencies {
     // DB
     runtimeOnly 'org.postgresql:postgresql'
 
-    // Flyway (DB 마이그레이션 — 유니크 제약/스키마 형상관리)
-    implementation 'org.flywaydb:flyway-core'
-    implementation 'org.flywaydb:flyway-database-postgresql'
-
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
