@@ -1,6 +1,6 @@
-package com.sparta.spartachallenge8282.payment.dto.request;
+package com.sparta.spartachallenge8282.payment.presentation.dto.request;
 
-import com.sparta.spartachallenge8282.payment.entity.PaymentMethod;
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 

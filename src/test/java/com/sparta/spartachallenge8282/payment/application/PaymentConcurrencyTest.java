@@ -1,12 +1,12 @@
-package com.sparta.spartachallenge8282.payment.service;
+package com.sparta.spartachallenge8282.payment.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.order.entity.Order;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
-import com.sparta.spartachallenge8282.payment.entity.PaymentMethod;
-import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
+import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

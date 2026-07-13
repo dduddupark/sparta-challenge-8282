@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.payment.dto.request;
+package com.sparta.spartachallenge8282.payment.presentation.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 

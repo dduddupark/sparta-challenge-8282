@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.payment.entity;
+package com.sparta.spartachallenge8282.payment.domain;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
 import com.sparta.spartachallenge8282.order.entity.Order;

@@ -1,20 +1,21 @@
-package com.sparta.spartachallenge8282.payment.service;
+package com.sparta.spartachallenge8282.payment.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.order.entity.Order;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCancelRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentRefundRequest;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCancelResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCreateResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentRefundResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentResponse;
-import com.sparta.spartachallenge8282.payment.entity.Payment;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
-import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCancelResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCreateResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentRefundResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentResponse;
+import com.sparta.spartachallenge8282.payment.domain.Payment;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -57,11 +58,12 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final PlatformTransactionManager txManager;
 
-    // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값)
-    private static final String ROLE_CUSTOMER = "ROLE_CUSTOMER";
-    private static final String ROLE_OWNER    = "ROLE_OWNER";
-    private static final String ROLE_MANAGER  = "ROLE_MANAGER";
-    private static final String ROLE_MASTER   = "ROLE_MASTER";
+    // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값과 동일).
+    // 하드코딩 대신 UserRole enum(SSOT)에서 파생시켜 역할 코드/표기 변경에 자동 동기화한다.
+    private static final String ROLE_CUSTOMER = UserRole.CUSTOMER.getAuthority();
+    private static final String ROLE_OWNER    = UserRole.OWNER.getAuthority();
+    private static final String ROLE_MANAGER  = UserRole.MANAGER.getAuthority();
+    private static final String ROLE_MASTER   = UserRole.MASTER.getAuthority();
 
     /**
      * 결제 생성. {@code amount} 는 주문 금액과 일치해야 한다.
