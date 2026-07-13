@@ -4,9 +4,12 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 /**
- * 리뷰 수정 요청 DTO
- * 생성과 비슷하지만 평점 기능을 수정안해도 되도록 구현
- * */
+ * 리뷰 수정 요청 DTO.
+ * 모든 필드가 선택(optional)이다 — orderId 는 아예 포함하지 않으며
+ * (수정 시 주문을 바꿀 수 없음), 보내지 않은 필드는 Review.update() 에서
+ * 기존 값을 그대로 유지한다. rating 은 값이 오면 1~5 범위만 검증하고(@Min/@Max)
+ * 생성 요청과 달리 @NotNull 은 붙이지 않는다.
+ */
 
 public record ReviewUpdateRequestDto(
         @Min(value = 1, message = "평점은 1점 이상이어야 합니다.")

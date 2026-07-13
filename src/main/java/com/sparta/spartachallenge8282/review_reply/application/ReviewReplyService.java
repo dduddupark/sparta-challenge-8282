@@ -72,8 +72,11 @@ public class ReviewReplyService {
         ReviewReply reviewReply = reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(()->new CustomException(ErrorCode.REPLY_NOT_FOUND));
 
-        if(!reviewReply.getStoreId().equals(reviewReply.getStoreId())){
-            throw new CustomException(ErrorCode.NOT_REPLY_OWNER);
+        Store store = storeRepository.findById(reviewReply.getStoreId())
+                .orElseThrow(()->new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        if(!store.getOwner().getId().equals(userId)){
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
         reviewReply.update(requestDto.content());
@@ -81,18 +84,21 @@ public class ReviewReplyService {
     }
 
     @Transactional
-    public void deleteReply(UUID reviewId, Long userId) {
+    public void deleteReply(UUID reviewId, Long userId, String role) {
         ReviewReply reviewReply = reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(()->new CustomException(ErrorCode.REPLY_NOT_FOUND));
 
         Store store = storeRepository.findById(reviewReply.getStoreId())
                 .orElseThrow(()->new CustomException(ErrorCode.STORE_NOT_FOUND));
 
-        if(!reviewReply.getReviewId().equals(reviewId)) {
-            throw new CustomException(ErrorCode.NOT_REPLY_OWNER);
+        boolean isOwner = store.getOwner().getId().equals(userId);
+        boolean isManagerOrMaster = "MANAGER".equals(role) || "MASTER".equals(role);
+
+        if (!isOwner && !isManagerOrMaster) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
-        reviewReply.softDelete(userId); // 임시로 Null 처리, User ID 를 넣어야함
+        reviewReply.softDelete(userId);
     }
 
 

@@ -12,13 +12,30 @@ import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewRes
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * 리뷰 생성/조회/수정/삭제 비즈니스 로직.
+ * 생성 시 storeId를 파라미터로 받지 않는다 - orderId로 Order를 조회해
+ * 1) 본인 주문인지(REVIEW_NOT_ORDER_OWNER)
+ * 2) 배달완료(OrderStatus.COMPLETED) 상태인지(REVIEW_NOT_DELIVERED)
+ * 3) 이미 리뷰가 있는 주문인지(REVIEW_ALREADY_EXISTS)
+ * 를 순서대로 검증한 뒤, order.getStoreId()로 storeId를 얻어 저장한다.
+ * 목록/상세 조회는 인증이 필요 없다 - 생성/수정/삭제만 로그인한 본인 확인이 필요하다.
+ * 삭제는 본인 또는 MANAGER/MASTER 권한을 가진 경우에도 가능하다.
+ */
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +43,8 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId) {
@@ -59,10 +78,22 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public ReviewSliceResponseDto getReviewsByStore(UUID storeId, Pageable pageable) {
 
-        // TODO: Store 완성되면 존재하는 가게인지 검증 추가 (STORE_NOT_FOUND)
+        if(!storeRepository.existsById(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
 
         Slice<Review> slice = reviewRepository.findByStoreIdAndDeletedAtIsNull(storeId, pageable);
-        return ReviewSliceResponseDto.from(slice);
+
+        List<Long> userIds = slice.getContent().stream()
+                .map(Review::getUserId)
+                .distinct()
+                .toList();
+
+        Map<Long, String> nicknameMap = userRepository.findAllById(userIds).stream()
+                .filter(user -> !user.isDeleted())
+                .collect(Collectors.toMap(User::getId, User::getNickname));
+
+        return ReviewSliceResponseDto.from(slice, nicknameMap);
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +102,10 @@ public class ReviewService {
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
 
-        return ReviewResponseDto.from(review);
+        User user = userRepository.findByIdAndDeletedAtIsNull(review.getUserId())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        return ReviewResponseDto.from(review, user.getNickname());
     }
 
     @Transactional
@@ -90,12 +124,15 @@ public class ReviewService {
     }
 
     @Transactional
-    public void deleteReview(UUID reviewId, Long userId) {
+    public void deleteReview(UUID reviewId, Long userId, String role) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
 
-        if (!review.getUserId().equals(userId)) {
+        boolean isOwner = review.getUserId().equals(userId);
+        boolean isManagerOrMaster = "MANAGER".equals(role) || "MASTER".equals(role);
+
+        if (!isOwner && !isManagerOrMaster) {
             throw new CustomException(ErrorCode.NOT_REVIEW_OWNER);
         }
 

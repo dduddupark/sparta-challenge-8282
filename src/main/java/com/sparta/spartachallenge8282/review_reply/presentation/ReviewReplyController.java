@@ -65,7 +65,7 @@ public class ReviewReplyController {
             @AuthenticationPrincipal UserDetailsImpl userDetails
             ){
 
-        reviewReplyService.deleteReply(reviewId, userDetails.userId());
+        reviewReplyService.deleteReply(reviewId, userDetails.userId(), userDetails.role());
 
         return ResponseEntity.ok(ApiResponse.success("답글이 삭제되었습니다."));
     }

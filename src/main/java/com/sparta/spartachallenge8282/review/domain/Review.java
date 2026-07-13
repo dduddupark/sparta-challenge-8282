@@ -10,6 +10,15 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+/**
+ * 배달 주문에 대한 리뷰 엔티티.
+ * 주문(Order)과 1:1 관계다 - orderId를 UNIQUE로 제약해 한 주문에 리뷰가 하나만 달리도록 강제한다.
+ * 한 주문에 메뉴가 여러 개 담겨도 리뷰는 주문에 대한 것이다. (메뉴 단위가 아님)
+ * storeId는 리뷰 작성 시 클라이언트가 보내지 않고, orderId로 조회한 Order에서 추출해 저장한다.
+ * 가게 목록 조회 시 /stores/{storeId}/reviews로 바로 필터링할 수 있게 하기 위한 비정규화 컬럼이다.
+ * 상태 변경은 update() / BaseEntity.softDelete()로만 수행한다.
+ */
+
 @Entity
 @Table(name = "p_review")
 @Getter

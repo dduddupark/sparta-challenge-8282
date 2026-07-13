@@ -4,6 +4,7 @@ import com.sparta.spartachallenge8282.review.domain.Review;
 import org.springframework.data.domain.Slice;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 /**
  * 리뷰 슬라이스 응답 DTO.
@@ -15,14 +16,13 @@ public record ReviewSliceResponseDto(
         boolean hasNext
 ) {
 
-    public static ReviewSliceResponseDto from(Slice<Review> slice) {
+    public static ReviewSliceResponseDto from(Slice<Review> slice, Map<Long, String> nicknameMap) {
         List<ReviewListItemResponseDto> content = slice.getContent().stream()
-                .map(ReviewListItemResponseDto::from)
-                .collect(Collectors.toList());
+                .map(review -> ReviewListItemResponseDto.from(
+                        review, nicknameMap.get(review.getUserId())))
+                .toList();
 
-        return new ReviewSliceResponseDto(
-                content,
-                slice.hasNext()
+        return new ReviewSliceResponseDto(content, slice.hasNext()
         );
     }
 }
