@@ -38,7 +38,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
         String token = jwtProvider.resolveToken(bearerToken);
 
-        if (token != null && jwtProvider.validateToken(token)) {
+        if (token != null && jwtProvider.validateAccessToken(token)) {
             setAuthentication(token);
         }
 
@@ -53,12 +53,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private void setAuthentication(String token) {
         Claims claims = jwtProvider.parseClaims(token);
         Long userId = claims.get(JwtProvider.CLAIM_USER_ID, Long.class);
+        Object tokenVersionClaim = claims.get(JwtProvider.CLAIM_TOKEN_VERSION);
 
         // 1. PK 기반 고속 DB 조회로 유저 유효성 및 최신 권한 로드
         User user = userRepository.findByIdAndDeletedAtIsNull(userId).orElse(null);
 
         if (user == null) {
             log.warn("[JWT Auth] 인증 실패 - 회원 정보를 찾을 수 없거나 탈퇴한 회원입니다. userId={}", userId);
+            return;
+        }
+
+        if (!(tokenVersionClaim instanceof Number tokenVersion)
+                || tokenVersion.longValue() != user.getTokenVersion()) {
+            log.warn("[JWT Auth] 인증 실패 - 무효화된 액세스 토큰입니다. userId={}", userId);
             return;
         }
 

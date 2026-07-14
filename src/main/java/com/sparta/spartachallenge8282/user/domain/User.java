@@ -44,6 +44,9 @@ public class User extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String refreshToken; // 만료 시간 대비 TEXT 타입 지정
 
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long tokenVersion = 0L;
+
     @Builder
     public User(String email, String password, String nickname, String address, UserRole role) {
         this.email = email;
@@ -87,6 +90,15 @@ public class User extends BaseEntity {
      * 로그아웃 시 리프레시 토큰 비우기
      */
     public void clearRefreshToken() {
+        this.refreshToken = null;
+    }
+
+    /**
+     * 현재 발급된 모든 토큰을 무효화한다.
+     * Access Token의 버전과 DB의 버전이 다르면 인증 필터에서 거부된다.
+     */
+    public void invalidateTokens() {
+        this.tokenVersion++;
         this.refreshToken = null;
     }
 

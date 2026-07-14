@@ -24,6 +24,8 @@ import java.util.Date;
  * sub : email,
  * userId : 1,
  * role : "ROLE_CUSTOMER",
+ * tokenType : "ACCESS",
+ * tokenVersion : 0,
  * iat,
  * exp
  * }
@@ -31,6 +33,7 @@ import java.util.Date;
  * 리프레시 토큰 payload
  * {
  * sub : email,
+ * tokenType : "REFRESH",
  * iat,
  * exp
  * }
@@ -46,6 +49,11 @@ public class JwtProvider {
 
     public static final String CLAIM_USER_ID = "userId";
     public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_TOKEN_TYPE = "tokenType";
+    public static final String CLAIM_TOKEN_VERSION = "tokenVersion";
+
+    public static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    public static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     private final SecretKey secretKey;
     private final long accessExpirationMs;
@@ -69,14 +77,17 @@ public class JwtProvider {
      * @param userId 사용자 PK (AuditorAware 등 내부 사용)
      * @param email  사용자 아이디 (subject, PRD 스펙)
      * @param role   역할 문자열 (ex. "ROLE_CUSTOMER")
+     * @param tokenVersion 로그아웃·비밀번호 변경 시 증가하는 토큰 무효화 버전
      */
-    public String createAccessToken(Long userId, String email, String role) {
+    public String createAccessToken(Long userId, String email, String role, long tokenVersion) {
         Date now = new Date();
         return Jwts.builder()
                 .id(java.util.UUID.randomUUID().toString())
                 .subject(email)
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
+                .claim(CLAIM_TOKEN_VERSION, tokenVersion)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + accessExpirationMs))
                 .signWith(secretKey)
@@ -94,6 +105,7 @@ public class JwtProvider {
         return Jwts.builder()
                 .id(java.util.UUID.randomUUID().toString())
                 .subject(email)
+                .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshExpirationMs))
                 .signWith(secretKey)
@@ -130,10 +142,10 @@ public class JwtProvider {
      * 토큰 유효성 검증 (서명 + 만료 여부).
      * 액세스 토큰 필터에서 사용.
      */
-    public boolean validateToken(String token) {
+    public boolean validateAccessToken(String token) {
         try {
-            parseClaims(token);
-            return true;
+            Claims claims = parseClaims(token);
+            return TOKEN_TYPE_ACCESS.equals(claims.get(CLAIM_TOKEN_TYPE, String.class));
         } catch (ExpiredJwtException e) {
             log.warn("[JWT] 만료된 토큰: {}", e.getMessage());
         } catch (JwtException e) {
@@ -151,7 +163,11 @@ public class JwtProvider {
      */
     public String validateRefreshToken(String refreshToken) {
         try {
-            return parseClaims(refreshToken).getSubject();
+            Claims claims = parseClaims(refreshToken);
+            if (!TOKEN_TYPE_REFRESH.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) {
+                return null;
+            }
+            return claims.getSubject();
         } catch (ExpiredJwtException e) {
             log.warn("[JWT] 만료된 리프레시 토큰");
         } catch (JwtException e) {
