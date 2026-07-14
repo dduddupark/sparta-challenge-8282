@@ -3,6 +3,9 @@ package com.sparta.spartachallenge8282.option.application;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.common.PageableUtil;
+import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.menu.domain.Menu;
+import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionCreateRequest;
@@ -10,7 +13,10 @@ import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOption
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionCreateResponse;
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionDeleteResponse;
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionResponse;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +30,7 @@ import java.util.UUID;
  *
  * <p>옵션은 옵션 그룹에 종속 — 생성 시 상위 그룹 존재를 검증한다(OPTION_GROUP_NOT_FOUND).
  * additional_price 음수는 Service(INVALID_OPTION_PRICE) + DB @Check 로 방어.
- * 권한(소유권) 검증은 store 연동(auth 브랜치)에서 구현.
+ * OWNER 쓰기 요청은 상위 옵션 그룹과 메뉴를 따라 가게 소유권을 확인한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +39,12 @@ public class MenuOptionService {
 
     private final MenuOptionRepository optionRepository;
     private final MenuOptionGroupRepository optionGroupRepository;
+    private final MenuRepository menuRepository;
+    private final StoreRepository storeRepository;
+
+    private static final String ROLE_OWNER = UserRole.OWNER.getAuthority();
+    private static final String ROLE_MANAGER = UserRole.MANAGER.getAuthority();
+    private static final String ROLE_MASTER = UserRole.MASTER.getAuthority();
 
     /**
      * 옵션 생성.
@@ -42,11 +54,12 @@ public class MenuOptionService {
      * @param optionGroupId 옵션이 속할 옵션 그룹 ID (경로 변수)
      */
     @Transactional
-    public MenuOptionCreateResponse createOption(UUID optionGroupId, MenuOptionCreateRequest request) {
-        if (optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId).isEmpty()) {
-            throw new CustomException(ErrorCode.OPTION_GROUP_NOT_FOUND);
-        }
-        // TODO(권한, auth 브랜치): OWNER 소유권 확인 → NO_OPTION_PERMISSION
+    public MenuOptionCreateResponse createOption(
+            UUID optionGroupId,
+            MenuOptionCreateRequest request,
+            UserDetailsImpl user) {
+        MenuOptionGroup group = findActiveGroup(optionGroupId);
+        validateStoreAccess(findStoreIdByOptionGroup(group), user);
         validatePrice(request.additionalPrice());
 
         MenuOption option = MenuOption.builder()
@@ -81,9 +94,9 @@ public class MenuOptionService {
 
     /** 옵션 수정 (부분 수정 — null 인 필드는 변경하지 않는다). 추가 금액이 음수면 {@code INVALID_OPTION_PRICE}. */
     @Transactional
-    public MenuOptionResponse updateOption(UUID id, MenuOptionUpdateRequest request) {
+    public MenuOptionResponse updateOption(UUID id, MenuOptionUpdateRequest request, UserDetailsImpl user) {
         MenuOption option = findActiveOption(id);
-        // TODO(권한, auth 브랜치): 소유권 검증 → NO_OPTION_PERMISSION
+        validateStoreAccess(findStoreIdByOption(option), user);
         validatePrice(request.additionalPrice());
 
         option.updateInfo(request.name(), request.additionalPrice(), request.sortOrder());
@@ -95,18 +108,18 @@ public class MenuOptionService {
     /**
      * 옵션 삭제 (소프트 삭제).
      *
-     * @param userId 삭제를 수행한 사용자 ID ({@code deleted_by} 에 기록)
+     * @param user 삭제를 수행한 인증 사용자 ({@code userId} 는 {@code deleted_by} 에 기록)
      */
     @Transactional
-    public MenuOptionDeleteResponse deleteOption(UUID id, Long userId) {
+    public MenuOptionDeleteResponse deleteOption(UUID id, UserDetailsImpl user) {
         MenuOption option = optionRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPTION_NOT_FOUND));
 
         if (option.isDeleted()) {
             throw new CustomException(ErrorCode.ALREADY_DELETED_OPTION);
         }
-        // TODO(권한, auth 브랜치): 소유권 검증
-        option.softDelete(userId);
+        validateStoreAccess(findStoreIdByOption(option), user);
+        option.softDelete(user.userId());
         return MenuOptionDeleteResponse.from(option);
     }
 
@@ -115,9 +128,40 @@ public class MenuOptionService {
                 .orElseThrow(() -> new CustomException(ErrorCode.OPTION_NOT_FOUND));
     }
 
+    private MenuOptionGroup findActiveGroup(UUID optionGroupId) {
+        return optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId)
+                .orElseThrow(() -> new CustomException(ErrorCode.OPTION_GROUP_NOT_FOUND));
+    }
+
+    private UUID findStoreIdByOption(MenuOption option) {
+        return findStoreIdByOptionGroup(findActiveGroup(option.getOptionGroupId()));
+    }
+
+    private UUID findStoreIdByOptionGroup(MenuOptionGroup group) {
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(group.getMenuId())
+                .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
+        return menu.getStoreId();
+    }
+
     private void validatePrice(Integer additionalPrice) {
         if (additionalPrice != null && additionalPrice < 0) {
             throw new CustomException(ErrorCode.INVALID_OPTION_PRICE);
+        }
+    }
+
+    private void validateStoreAccess(UUID storeId, UserDetailsImpl user) {
+        String role = user.role();
+        if (!ROLE_OWNER.equals(role) && !ROLE_MANAGER.equals(role) && !ROLE_MASTER.equals(role)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        if (!storeRepository.existsByIdAndDeletedAtIsNull(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
+
+        if (ROLE_OWNER.equals(role)
+                && !storeRepository.existsByIdAndOwner_IdAndDeletedAtIsNull(storeId, user.userId())) {
+            throw new CustomException(ErrorCode.NO_OPTION_PERMISSION);
         }
     }
 }

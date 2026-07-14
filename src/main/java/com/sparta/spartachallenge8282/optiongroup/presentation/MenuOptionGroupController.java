@@ -50,9 +50,11 @@ public class MenuOptionGroupController {
     @PostMapping("/menus/{menuId}/option-groups")
     public ResponseEntity<ApiResponse<MenuOptionGroupCreateResponse>> createOptionGroup(
             @PathVariable UUID menuId,
-            @Valid @RequestBody MenuOptionGroupCreateRequest request) {
+            @Valid @RequestBody MenuOptionGroupCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("옵션 그룹 생성 완료", optionGroupService.createOptionGroup(menuId, request)));
+                .body(ApiResponse.success("옵션 그룹 생성 완료",
+                        optionGroupService.createOptionGroup(menuId, request, userDetails)));
     }
 
     @GetMapping("/menus/{menuId}/option-groups")
@@ -78,9 +80,11 @@ public class MenuOptionGroupController {
     @PatchMapping("/option-groups/{optionGroupId}")
     public ResponseEntity<ApiResponse<MenuOptionGroupResponse>> updateOptionGroup(
             @PathVariable UUID optionGroupId,
-            @Valid @RequestBody MenuOptionGroupUpdateRequest request) {
+            @Valid @RequestBody MenuOptionGroupUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 그룹 수정 완료", optionGroupService.updateOptionGroup(optionGroupId, request)));
+                ApiResponse.success("옵션 그룹 수정 완료",
+                        optionGroupService.updateOptionGroup(optionGroupId, request, userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
@@ -89,6 +93,6 @@ public class MenuOptionGroupController {
             @PathVariable UUID optionGroupId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 그룹 삭제 완료", optionGroupService.deleteOptionGroup(optionGroupId, userDetails.userId())));
+                ApiResponse.success("옵션 그룹 삭제 완료", optionGroupService.deleteOptionGroup(optionGroupId, userDetails)));
     }
 }
