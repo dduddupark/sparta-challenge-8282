@@ -13,8 +13,8 @@ import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSli
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;

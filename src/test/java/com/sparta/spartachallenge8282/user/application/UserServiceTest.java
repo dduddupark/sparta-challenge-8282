@@ -1,14 +1,14 @@
-package com.sparta.spartachallenge8282.user.service;
+package com.sparta.spartachallenge8282.user.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
-import com.sparta.spartachallenge8282.user.dto.request.*;
-import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.*;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -645,8 +645,8 @@ class UserServiceTest {
         }
 
         @Test
-        @DisplayName("권한 부족 - MANAGER가 MASTER 부여 시도 시 ACCESS_DENIED 예외")
-        void changeRole_notMaster_throwsException() {
+        @DisplayName("권한 부족 - API를 통해 MASTER 부여 시도 시 CANNOT_ASSIGN_MASTER_ROLE 예외")
+        void changeRole_grantMaster_throwsException() {
             User targetUser = User.builder()
                     .email("test@sparta.com").password("encoded")
                     .nickname("일반").address("서울").role(UserRole.CUSTOMER).build();
@@ -660,7 +660,7 @@ class UserServiceTest {
             assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MANAGER))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.ACCESS_DENIED));
+                            .isEqualTo(ErrorCode.CANNOT_ASSIGN_MASTER_ROLE));
         }
 
         @Test
@@ -679,8 +679,8 @@ class UserServiceTest {
         }
 
         @Test
-        @DisplayName("MASTER 권한 부여 시 이미 MASTER가 존재하면 ALREADY_EXISTS_MASTER 예외 발생")
-        void changeRole_grantMaster_alreadyExists_throwsException() {
+        @DisplayName("MANAGER는 다른 사용자에게 MANAGER 권한을 부여할 수 없다")
+        void changeRole_managerAssignsManagerRole_throwsAccessDenied() {
             // given
             User targetUser = User.builder()
                     .email("test@sparta.com").password("encoded")
@@ -688,15 +688,14 @@ class UserServiceTest {
             ReflectionTestUtils.setField(targetUser, "id", 2L);
 
             given(userRepository.findByIdAndDeletedAtIsNull(2L)).willReturn(java.util.Optional.of(targetUser));
-            given(userRepository.existsByRoleAndDeletedAtIsNull(UserRole.MASTER)).willReturn(true);
 
-            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MASTER);
+            ChangeRoleRequest request = new ChangeRoleRequest(UserRole.MANAGER);
 
             // when & then
-            assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MASTER))
+            assertThatThrownBy(() -> userService.changeRole(2L, request, UserRole.MANAGER))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> assertThat(((CustomException) ex).getErrorCode())
-                            .isEqualTo(ErrorCode.ALREADY_EXISTS_MASTER));
+                            .isEqualTo(ErrorCode.ACCESS_DENIED));
         }
     }
 }

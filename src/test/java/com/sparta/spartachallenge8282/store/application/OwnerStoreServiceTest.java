@@ -15,7 +15,7 @@ import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreOpenSt
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreUpdateRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreListResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

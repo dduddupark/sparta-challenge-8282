@@ -1,6 +1,6 @@
-package com.sparta.spartachallenge8282.user.repository;
+package com.sparta.spartachallenge8282.user.domain;
 
-import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.domain.User;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -58,8 +58,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     Page<User> findAllByDeletedAtIsNotNull(Pageable pageable);
 
-    /**
-     * 특정 역할을 가진 탈퇴하지 않은 회원이 존재하는지 확인
-     */
-    boolean existsByRoleAndDeletedAtIsNull(com.sparta.spartachallenge8282.user.entity.UserRole role);
 }

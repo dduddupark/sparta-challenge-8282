@@ -3,7 +3,7 @@ package com.sparta.spartachallenge8282.store.application.validator;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.springframework.stereotype.Component;
 
 @Component

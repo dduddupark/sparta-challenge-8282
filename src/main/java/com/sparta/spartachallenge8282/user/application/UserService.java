@@ -1,15 +1,15 @@
-package com.sparta.spartachallenge8282.user.service;
+package com.sparta.spartachallenge8282.user.application;
 
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
-import com.sparta.spartachallenge8282.user.dto.request.*;
-import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.*;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -250,18 +250,15 @@ public class UserService {
         User user = userRepository.findByIdAndDeletedAtIsNull(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 부여하려는 역할이 관리자 등급(MASTER, MANAGER)인데, 요청한 사람이 MASTER가 아닌 경우 차단
-        if (request.role() == UserRole.MASTER || request.role() == UserRole.MANAGER) {
-            if (executorRole != UserRole.MASTER) {
-                throw new CustomException(ErrorCode.ACCESS_DENIED);
-            }
+        // 부여하려는 역할이 MASTER인 경우, API를 통한 권한 부여는 전면 차단 (최초 DB 직접 생성)
+        if (request.role() == UserRole.MASTER) {
+            throw new CustomException(ErrorCode.CANNOT_ASSIGN_MASTER_ROLE);
         }
 
-        //TODO: 이미 마스터가 있는데 왜 조회를 해?
-        // 부여하려는 역할이 MASTER일 경우, 이미 MASTER가 존재하는지 확인 (자신이 이미 MASTER인 경우는 제외)
-        if (request.role() == UserRole.MASTER && user.getRole() != UserRole.MASTER) {
-            if (userRepository.existsByRoleAndDeletedAtIsNull(UserRole.MASTER)) {
-                throw new CustomException(ErrorCode.ALREADY_EXISTS_MASTER);
+        // 부여하려는 역할이 MANAGER일 경우, 요청한 사람이 MASTER가 아닌 경우 차단
+        if (request.role() == UserRole.MANAGER) {
+            if (executorRole != UserRole.MASTER) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED);
             }
         }
 

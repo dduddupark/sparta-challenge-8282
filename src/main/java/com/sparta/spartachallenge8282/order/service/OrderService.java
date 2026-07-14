@@ -10,7 +10,7 @@ import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.repository.OrderStatusHistoryRepository;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
