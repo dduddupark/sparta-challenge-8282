@@ -12,6 +12,8 @@ import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
 import com.sparta.spartachallenge8282.optiongroup.presentation.dto.request.MenuOptionGroupCreateRequest;
 import com.sparta.spartachallenge8282.optiongroup.presentation.dto.request.MenuOptionGroupUpdateRequest;
+import com.sparta.spartachallenge8282.optiongroup.presentation.dto.response.MenuOptionGroupCreateResponse;
+import com.sparta.spartachallenge8282.optiongroup.presentation.dto.response.MenuOptionGroupDeleteResponse;
 import com.sparta.spartachallenge8282.optiongroup.presentation.dto.response.MenuOptionGroupResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -101,10 +103,10 @@ class MenuOptionGroupServiceTest {
         given(optionGroupRepository.save(any(MenuOptionGroup.class))).willReturn(saved);
 
         // when
-        UUID result = optionGroupService.createOptionGroup(menuId, request);
+        MenuOptionGroupCreateResponse result = optionGroupService.createOptionGroup(menuId, request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.optionGroupId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -285,12 +287,13 @@ class MenuOptionGroupServiceTest {
         given(optionRepository.findAllByOptionGroupIdAndDeletedAtIsNull(id)).willReturn(List.of());
 
         // when
-        LocalDateTime deletedAt = optionGroupService.deleteOptionGroup(id, userId);
+        MenuOptionGroupDeleteResponse result = optionGroupService.deleteOptionGroup(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.optionGroupId()).isEqualTo(id);
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(group.isDeleted()).isTrue();
-        assertThat(group.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(group.getDeletedAt()).isEqualTo(result.deletedAt());
         assertThat(group.getDeletedBy()).isEqualTo(userId);
     }
 

@@ -7,6 +7,8 @@ import com.sparta.spartachallenge8282.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionCreateRequest;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionUpdateRequest;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionCreateResponse;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionDeleteResponse;
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionResponse;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -33,8 +34,15 @@ public class MenuOptionService {
     private final MenuOptionRepository optionRepository;
     private final MenuOptionGroupRepository optionGroupRepository;
 
+    /**
+     * 옵션 생성.
+     *
+     * <p>상위 옵션 그룹이 없으면 {@code OPTION_GROUP_NOT_FOUND}, 추가 금액이 음수면 {@code INVALID_OPTION_PRICE}.
+     *
+     * @param optionGroupId 옵션이 속할 옵션 그룹 ID (경로 변수)
+     */
     @Transactional
-    public UUID createOption(UUID optionGroupId, MenuOptionCreateRequest request) {
+    public MenuOptionCreateResponse createOption(UUID optionGroupId, MenuOptionCreateRequest request) {
         if (optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId).isEmpty()) {
             throw new CustomException(ErrorCode.OPTION_GROUP_NOT_FOUND);
         }
@@ -49,13 +57,19 @@ public class MenuOptionService {
                 .isActive(request.isActive())
                 .build();
 
-        return optionRepository.save(option).getId();
+        return MenuOptionCreateResponse.from(optionRepository.save(option));
     }
 
+    /** 옵션 단건 조회. (삭제되지 않은 항목이면 비활성이어도 조회된다 — 목록 조회와 필터가 다르다) */
     public MenuOptionResponse getOption(UUID id) {
         return MenuOptionResponse.from(findActiveOption(id));
     }
 
+    /**
+     * 옵션 그룹별 옵션 목록 검색. (페이지 크기는 10/30/50 만 허용)
+     *
+     * <p>{@code isActive} 미지정 시 활성 항목만 조회한다.
+     */
     public Page<MenuOptionResponse> getOptionList(UUID optionGroupId, String keyword, Boolean isActive, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;
         Boolean activeFilter = (isActive == null) ? true : isActive;
@@ -65,6 +79,7 @@ public class MenuOptionService {
                 .map(MenuOptionResponse::from);
     }
 
+    /** 옵션 수정 (부분 수정 — null 인 필드는 변경하지 않는다). 추가 금액이 음수면 {@code INVALID_OPTION_PRICE}. */
     @Transactional
     public MenuOptionResponse updateOption(UUID id, MenuOptionUpdateRequest request) {
         MenuOption option = findActiveOption(id);
@@ -77,8 +92,13 @@ public class MenuOptionService {
         return MenuOptionResponse.from(option);
     }
 
+    /**
+     * 옵션 삭제 (소프트 삭제).
+     *
+     * @param userId 삭제를 수행한 사용자 ID ({@code deleted_by} 에 기록)
+     */
     @Transactional
-    public LocalDateTime deleteOption(UUID id, Long userId) {
+    public MenuOptionDeleteResponse deleteOption(UUID id, Long userId) {
         MenuOption option = optionRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.OPTION_NOT_FOUND));
 
@@ -87,7 +107,7 @@ public class MenuOptionService {
         }
         // TODO(권한, auth 브랜치): 소유권 검증
         option.softDelete(userId);
-        return option.getDeletedAt();
+        return MenuOptionDeleteResponse.from(option);
     }
 
     private MenuOption findActiveOption(UUID id) {

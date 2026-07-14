@@ -6,6 +6,8 @@ import com.sparta.spartachallenge8282.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionCreateRequest;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionUpdateRequest;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionCreateResponse;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionDeleteResponse;
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionResponse;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
@@ -81,10 +83,10 @@ class MenuOptionServiceTest {
         given(optionRepository.save(any(MenuOption.class))).willReturn(saved);
 
         // when
-        UUID result = optionService.createOption(optionGroupId, request);
+        MenuOptionCreateResponse result = optionService.createOption(optionGroupId, request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.optionId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -256,12 +258,13 @@ class MenuOptionServiceTest {
         given(optionRepository.findById(id)).willReturn(Optional.of(option));
 
         // when
-        LocalDateTime deletedAt = optionService.deleteOption(id, userId);
+        MenuOptionDeleteResponse result = optionService.deleteOption(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.optionId()).isEqualTo(id);
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(option.isDeleted()).isTrue();
-        assertThat(option.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(option.getDeletedAt()).isEqualTo(result.deletedAt());
         assertThat(option.getDeletedBy()).isEqualTo(userId);
     }
 
