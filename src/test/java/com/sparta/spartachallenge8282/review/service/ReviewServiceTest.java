@@ -4,18 +4,29 @@ import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.order.entity.Order;
 import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.review.dto.request.ReviewCreateRequestDto;
-import com.sparta.spartachallenge8282.review.dto.response.ReviewResultResponseDto;
-import com.sparta.spartachallenge8282.review.entity.Review;
-import com.sparta.spartachallenge8282.review.repository.ReviewRepository;
+import com.sparta.spartachallenge8282.review.application.ReviewService;
+import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
+import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewResultResponseDto;
+import com.sparta.spartachallenge8282.review.domain.Review;
+import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
+import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +42,11 @@ class ReviewServiceTest {
     private ReviewRepository reviewRepository;
     @Mock
     private OrderRepository orderRepository;
+    @Mock
+    private StoreRepository storeRepository;
+    @Mock
+    private UserRepository userRepository;
+
 
     @InjectMocks   // 위의 Mock들을 자동으로 주입받는 진짜 테스트 대상
     private ReviewService reviewService;
@@ -174,6 +190,57 @@ class ReviewServiceTest {
 
         // when & then
         assertThatThrownBy(() -> reviewService.createReview(requestDto, userId))
+                .isInstanceOf(CustomException.class);
+    }
+
+
+    @Test
+    @DisplayName("가게 리뷰 목록 조회 성공")
+    void getReviewsByStoreTest() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Long userId = 1L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Review review = Review.builder()
+                .requestDto(new ReviewCreateRequestDto(UUID.randomUUID(), 5, "맛있어요", null))
+                .userId(userId)
+                .storeId(storeId)
+                .build();
+
+        Slice<Review> slice = new SliceImpl<>(List.of(review), pageable, false);
+
+        User user = User.builder()
+                .email("test@test.com")
+                .password("encoded-pw")
+                .nickname("맛집탐험가")
+                .address("서울시 종로구")
+                .role(UserRole.CUSTOMER)
+                .build();
+        ReflectionTestUtils.setField(user, "id", userId);   // IDENTITY라 빌더로 못 넣으니 강제 주입
+
+        when(storeRepository.existsById(storeId)).thenReturn(true);
+        when(reviewRepository.findByStoreIdAndDeletedAtIsNull(storeId, pageable)).thenReturn(slice);
+        when(userRepository.findAllById(List.of(userId))).thenReturn(List.of(user));
+
+        // when
+        ReviewSliceResponseDto result = reviewService.getReviewsByStore(storeId, pageable);
+
+        // then
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("가게 리뷰 목록 조회 실패: 가게 없음")
+    void getReviewsByStoreTest_fail_store_not_found() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(storeRepository.existsById(storeId)).thenReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> reviewService.getReviewsByStore(storeId, pageable))
                 .isInstanceOf(CustomException.class);
     }
 }

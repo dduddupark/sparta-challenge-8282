@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * 카테고리 비즈니스 로직.
  *
- * <p>조회는 클래스 기본 {@code @Transactional(readOnly = true)}, 쓰기 메서드만 {@code @Transactional} 로 오버라이드한다.
+ * 조회는 클래스 기본 @Transactional(readOnly = true), 쓰기 메서드만 @Transactional 로 오버라이드한다.
  */
 @Service
 @RequiredArgsConstructor
