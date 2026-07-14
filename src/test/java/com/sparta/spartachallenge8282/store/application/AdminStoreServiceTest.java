@@ -9,8 +9,8 @@ import com.sparta.spartachallenge8282.store.application.validator.StoreAuthoriza
 import com.sparta.spartachallenge8282.store.domain.*;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreRejectRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.*;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

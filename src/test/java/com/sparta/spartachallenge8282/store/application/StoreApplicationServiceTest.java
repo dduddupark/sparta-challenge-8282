@@ -16,9 +16,9 @@ import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreApplic
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationCreateResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationListResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

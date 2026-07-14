@@ -1,12 +1,12 @@
-package com.sparta.spartachallenge8282.user.controller;
+package com.sparta.spartachallenge8282.user.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.user.dto.request.LoginRequest;
-import com.sparta.spartachallenge8282.user.dto.request.SignUpRequest;
-import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
-import com.sparta.spartachallenge8282.user.service.UserService;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.LoginRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.SignUpRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.application.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

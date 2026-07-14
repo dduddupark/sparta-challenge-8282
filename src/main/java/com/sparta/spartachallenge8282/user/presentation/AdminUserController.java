@@ -1,12 +1,12 @@
-package com.sparta.spartachallenge8282.user.controller;
+package com.sparta.spartachallenge8282.user.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.user.dto.request.ChangeRoleRequest;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
-import com.sparta.spartachallenge8282.user.service.UserService;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.ChangeRoleRequest;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.application.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;

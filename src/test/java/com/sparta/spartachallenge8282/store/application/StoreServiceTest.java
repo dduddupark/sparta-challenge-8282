@@ -11,7 +11,7 @@ import com.sparta.spartachallenge8282.store.domain.StoreOperationStatus;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.UserStoreDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.UserStoreListResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

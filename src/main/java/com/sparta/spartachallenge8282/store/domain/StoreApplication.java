@@ -3,7 +3,7 @@ package com.sparta.spartachallenge8282.store.domain;
 import com.sparta.spartachallenge8282.category.domain.Category;
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
 import com.sparta.spartachallenge8282.region.domain.Region;
-import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.domain.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

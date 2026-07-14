@@ -1,6 +1,6 @@
-package com.sparta.spartachallenge8282.user.repository;
+package com.sparta.spartachallenge8282.user.domain;
 
-import com.sparta.spartachallenge8282.user.entity.User;
+import com.sparta.spartachallenge8282.user.domain.User;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

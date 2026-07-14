@@ -1,14 +1,14 @@
-package com.sparta.spartachallenge8282.user.service;
+package com.sparta.spartachallenge8282.user.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.JwtProvider;
-import com.sparta.spartachallenge8282.user.dto.request.*;
-import com.sparta.spartachallenge8282.user.dto.response.LoginResponse;
-import com.sparta.spartachallenge8282.user.dto.response.UserResponse;
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
-import com.sparta.spartachallenge8282.user.repository.UserRepository;
+import com.sparta.spartachallenge8282.user.presentation.dto.request.*;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.LoginResponse;
+import com.sparta.spartachallenge8282.user.presentation.dto.response.UserResponse;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
