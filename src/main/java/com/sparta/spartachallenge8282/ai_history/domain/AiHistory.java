@@ -10,6 +10,17 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * AI 메뉴 설명 생성 요청/응답 이력 로그.
+ *
+ * <로그성 테이블이라 BaseEntity를 상속하지 않고, 생성 시각만
+ * @CreationTimestamp로 관리한다. soft delete나
+ * 수정 이력 추적이 필요 없는 순수 기록용 엔티티이기 때문이다.
+ *
+ * Gemini 호출이 실패해도 이 이력은 남는다 - response는 null,
+ * isSuccess는 false로 저장되어 "실패했다는 사실" 자체가 기록된다.
+ */
+
 @Entity
 @Table(name="p_ai_history")
 @Getter
@@ -29,11 +40,9 @@ public class AiHistory {
     @Column(nullable = false)
     private Long requestedBy;
 
-
-    // 요청 프롬프트
+    // 요청 프롬프트 (자동/수동 여부와 무관하게 최종 프롬프트 그대로 저장)
     @Column(nullable = false, length = 1000)
     private String prompt;
-
 
     // AI 응답 (실패 시 null)
     @Column(length = 1000)
