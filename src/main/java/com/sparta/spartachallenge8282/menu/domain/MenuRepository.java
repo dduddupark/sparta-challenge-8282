@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +37,7 @@ public interface MenuRepository extends JpaRepository<Menu, UUID> {
                            Pageable pageable);
 
     /**
+     * STORE
      * 가게 활성화 조건
      * 가게에 매뉴 1개이상 존재
      */

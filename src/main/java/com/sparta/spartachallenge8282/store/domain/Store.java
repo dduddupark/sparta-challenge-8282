@@ -239,4 +239,9 @@ public class Store extends BaseEntity {
         this.isOpen = false;
         softDelete(adminId);
     }
+
+    public void updateReviewSummary(BigDecimal storeRating, int reviewCount) {
+        this.storeRating = storeRating;
+        this.reviewCount = reviewCount;
+    }
 }

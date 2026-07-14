@@ -12,6 +12,7 @@ import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewRes
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
+import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.User;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
@@ -21,6 +22,8 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -70,9 +73,13 @@ public class ReviewService {
                 .storeId(order.getStoreId())
                 .build();
 
+        Review savedReview = reviewRepository.save(review);
+
+        //리뷰 생성 후 리뷰 집계를 갱신
+        refreshStoreReviewSummary(review.getStoreId());
 
         //생성이 완료되면 생성된 리뷰의 아이디를 반환
-        return ReviewResultResponseDto.from(reviewRepository.save(review).getId());
+        return ReviewResultResponseDto.from(savedReview.getId());
     }
 
     @Transactional(readOnly = true)
@@ -120,6 +127,9 @@ public class ReviewService {
 
         review.update(requestDto.rating(), requestDto.content(), requestDto.imageUrl());
 
+        //리뷰 수정 후 리뷰 집계를 갱신
+        refreshStoreReviewSummary(review.getStoreId());
+
         return ReviewResultResponseDto.from(review.getId());
     }
 
@@ -137,5 +147,31 @@ public class ReviewService {
         }
 
         review.softDelete(userId);
+
+        //리뷰 삭제 후 리뷰 집계를 갱신
+        refreshStoreReviewSummary(review.getStoreId());
+    }
+
+
+    /**
+     * 리뷰 집계 갱신
+     */
+    private void refreshStoreReviewSummary(UUID storeId) {
+        Store store = storeRepository
+                .findByIdAndDeletedAtIsNull(storeId)
+                .orElseThrow(
+                        () -> new CustomException(ErrorCode.STORE_NOT_FOUND)
+                );
+
+        Double averageRating = reviewRepository.calculateAverageRating(storeId);
+        long reviewCount = reviewRepository.countByStoreIdAndDeletedAtIsNull(storeId);
+
+        BigDecimal rating = BigDecimal
+                .valueOf(averageRating == null ? 0.0 : averageRating)
+                .setScale(1, RoundingMode.HALF_EVEN);
+
+        store.updateReviewSummary(rating, Math.toIntExact(reviewCount));
+
+
     }
 }
