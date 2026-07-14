@@ -1,7 +1,7 @@
 package com.sparta.spartachallenge8282.user.presentation.dto.response;
 
-import com.sparta.spartachallenge8282.user.entity.User;
-import com.sparta.spartachallenge8282.user.entity.UserRole;
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 
 import java.time.LocalDateTime;
 
@@ -12,7 +12,8 @@ public record UserResponse(
         String address,
         UserRole role,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        boolean isDeleted
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -22,7 +23,8 @@ public record UserResponse(
                 user.getAddress(),
                 user.getRole(),
                 user.getCreatedAt(),
-                user.getUpdatedAt()
+                user.getUpdatedAt(),
+                user.isDeleted()
         );
     }
 }

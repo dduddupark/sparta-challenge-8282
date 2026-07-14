@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.stream.Collectors;
 
@@ -51,6 +53,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), errorMessage));
+    }
+
+    /**
+     * 필수 요청 헤더 누락 처리 (예: 결제 생성의 {@code Idempotency-Key}).
+     * 클라이언트 오류이므로 400 으로 응답한다. (미처리 시 일반 예외 → 500 으로 오분류됨)
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<?>> handleMissingHeader(MissingRequestHeaderException e) {
+        String message = "필수 요청 헤더가 누락되었습니다: " + e.getHeaderName();
+        log.warn("[MissingRequestHeader] {}", message);
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.error(ErrorCode.INVALID_INPUT.getCode(), message));
+    }
+
+    /**
+     * Spring Security의 @PreAuthorize 권한 부족 예외 처리.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<?>> handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("[AccessDeniedException] {}", e.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.ACCESS_DENIED.getStatus())
+                .body(ApiResponse.error(ErrorCode.ACCESS_DENIED.getCode(), ErrorCode.ACCESS_DENIED.getMessage()));
     }
 
     /**

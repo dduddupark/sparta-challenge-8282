@@ -45,12 +45,25 @@ public enum ErrorCode {
     ALREADY_DELETED_USER(10106, HttpStatus.BAD_REQUEST, "이미 탈퇴한 회원입니다."),
     INVALID_CREDENTIALS(10107, HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     DUPLICATE_PASSWORD(10108, HttpStatus.BAD_REQUEST, "기존 비밀번호와 동일하게 변경할 수 없습니다."),
+    CANNOT_ASSIGN_MASTER_ROLE(10109, HttpStatus.FORBIDDEN, "API를 통해 MASTER 권한을 부여할 수 없습니다."),
+    MASTER_CANNOT_BE_DELETED(10110, HttpStatus.BAD_REQUEST, "MASTER 권한을 가진 사용자는 탈퇴/삭제할 수 없습니다."),
 
 
     // ── Store (20001 ~ 29999) ─────────────────────────────────────────────────
     STORE_NOT_FOUND(20001, HttpStatus.NOT_FOUND, "가게를 찾을 수 없습니다."),
     STORE_CLOSED(20002, HttpStatus.BAD_REQUEST, "영업 중인 가게가 아닙니다."),
-
+    INVALID_STORE_APPLICATION_STATUS(20003, HttpStatus.CONFLICT, "이미 처리되었거나 처리할 수 없는 가게 등록 신청 상태입니다."),
+    REJECTION_REASON_REQUIRED(20004, HttpStatus.BAD_REQUEST, "가게 등록 거절 사유는 필수입니다."),
+    STORE_NOT_APPROVED(20005, HttpStatus.BAD_REQUEST, "승인된 가게만 영업 상태를 변경할 수 있습니다."),
+    INVALID_STORE_APPLICANT_ROLE(20006, HttpStatus.FORBIDDEN, "CUSTOMER 또는 OWNER만 가게 등록을 신청할 수 있습니다."),
+    STORE_APPLICATION_NOT_FOUND(20007, HttpStatus.NOT_FOUND, "등록 신청된 가게를 찾을 수 없습니다."),
+    STORE_ACTIVATION_NOT_ALLOWED(20008, HttpStatus.CONFLICT, "운영 준비 중인 가게만 활성화할 수 있습니다."),
+    STORE_NOT_ACTIVE(20009, HttpStatus.CONFLICT, "활성화된 가게만 영업 상태를 변경할 수 있습니다."),
+    STORE_MENU_REQUIRED(20010, HttpStatus.BAD_REQUEST, "가게를 활성화하려면 메뉴를 한 개 이상 등록해야 합니다."),
+    STORE_UPDATE_NOT_ALLOWED(20011, HttpStatus.CONFLICT, "삭제 요청 또는 삭제 처리된 가게는 수정할 수 없습니다."),
+    STORE_CLOSE_ALREADY_REQUESTED(20012, HttpStatus.CONFLICT, "이미 삭제 요청된 가게입니다."),
+    STORE_ALREADY_CLOSED(20013, HttpStatus.CONFLICT, "이미 삭제 처리된 가게입니다."),
+    STORE_CLOSE_NOT_REQUESTED(20014, HttpStatus.CONFLICT, "삭제 요청된 가게만 폐점 승인할 수 있습니다."),
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
@@ -67,6 +80,22 @@ public enum ErrorCode {
 
     // ── Menu (40001 ~ 49999) ────────────────────────────────────────────────
     MENU_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
+    NO_MENU_PERMISSION(40002, HttpStatus.FORBIDDEN, "메뉴 관리 권한이 없습니다."),
+    INVALID_MENU_STATUS(40003, HttpStatus.BAD_REQUEST, "유효하지 않은 메뉴 상태입니다."),
+    INVALID_MENU_PRICE(40004, HttpStatus.BAD_REQUEST, "메뉴 가격은 0원 이상이어야 합니다."),
+    ALREADY_DELETED_MENU(40005, HttpStatus.CONFLICT, "이미 삭제된 메뉴입니다."),
+
+    // ── Menu Option Group (41001 ~ 41999) ────────────────────────────────────
+    OPTION_GROUP_NOT_FOUND(41001, HttpStatus.NOT_FOUND, "옵션 그룹을 찾을 수 없습니다."),
+    NO_OPTION_GROUP_PERMISSION(41002, HttpStatus.FORBIDDEN, "옵션 그룹 관리 권한이 없습니다."),
+    INVALID_OPTION_SELECT_RANGE(41003, HttpStatus.BAD_REQUEST, "옵션 선택 범위가 올바르지 않습니다."),
+    ALREADY_DELETED_OPTION_GROUP(41004, HttpStatus.CONFLICT, "이미 삭제된 옵션 그룹입니다."),
+
+    // ── Menu Option (42001 ~ 42999) ──────────────────────────────────────────
+    OPTION_NOT_FOUND(42001, HttpStatus.NOT_FOUND, "옵션을 찾을 수 없습니다."),
+    NO_OPTION_PERMISSION(42002, HttpStatus.FORBIDDEN, "옵션 관리 권한이 없습니다."),
+    INVALID_OPTION_PRICE(42003, HttpStatus.BAD_REQUEST, "옵션 추가 금액은 0원 이상이어야 합니다."),
+    ALREADY_DELETED_OPTION(42004, HttpStatus.CONFLICT, "이미 삭제된 옵션입니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
@@ -86,6 +115,8 @@ public enum ErrorCode {
     PAYMENT_NOT_CANCELABLE(60007, HttpStatus.CONFLICT, "취소할 수 없는 결제 상태입니다."),
     PAYMENT_NOT_REFUNDABLE(60008, HttpStatus.CONFLICT, "환불할 수 없는 결제 상태입니다."),
     PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
+    PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010, HttpStatus.CONFLICT, "동일한 멱등키로 다른 결제 요청이 접수되었습니다."),
+    PAYMENT_ORDER_NOT_PAYABLE(60011, HttpStatus.CONFLICT, "결제할 수 없는 주문 상태입니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────
@@ -94,10 +125,10 @@ public enum ErrorCode {
     MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
 
     // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
-    INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
-    NOT_DELIVERED(80002, HttpStatus.BAD_REQUEST, "배달완료 상태의 주문만 리뷰를 작성할 수 있습니다."),
-    NOT_ORDER_OWNER(80003, HttpStatus.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다."),
-    ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
+    REVIEW_INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
+    REVIEW_NOT_DELIVERED(80002, HttpStatus.BAD_REQUEST, "배달완료 상태의 주문만 리뷰를 작성할 수 있습니다."),
+    REVIEW_NOT_ORDER_OWNER(80003, HttpStatus.FORBIDDEN, "본인의 주문에 대해서만 리뷰를 작성할 수 있습니다."),
+    REVIEW_ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
     NOT_REVIEW_OWNER(80005, HttpStatus.FORBIDDEN, "본인이 작성한 리뷰만 수정/삭제할 수 있습니다."),
     REVIEW_NOT_FOUND(80006, HttpStatus.NOT_FOUND, "존재하지 않는 리뷰입니다."),
 

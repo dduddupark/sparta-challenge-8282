@@ -3,14 +3,14 @@ package com.sparta.spartachallenge8282.order.service;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
-import com.sparta.spartachallenge8282.order.dto.response.OrderDetailResponseDto;
-import com.sparta.spartachallenge8282.order.dto.response.OrderItemResponseDto;
-import com.sparta.spartachallenge8282.order.dto.response.OrderListResponseDto;
+import com.sparta.spartachallenge8282.order.dto.response.*;
 import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.entity.OrderStatusHistory;
 import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
-import com.sparta.spartachallenge8282.order.dto.response.OrderCreateResponseDto;
+import com.sparta.spartachallenge8282.order.repository.OrderStatusHistoryRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +32,7 @@ public class OrderService {
     private static final int DEFAULT_DISCOUNT_AMOUNT = 0;
 
     private final OrderRepository orderRepository;
+    private final OrderStatusHistoryRepository orderStatusHistoryRepository;
 
     /*
      * 주문 생성
@@ -183,6 +184,99 @@ public class OrderService {
 
         if (LocalDateTime.now().isAfter(cancelDeadline)) {
             throw new CustomException(ErrorCode.ORDER_CANCEL_NOT_ALLOWED);
+        }
+    }
+
+    //주문 상태 변경 메서드
+    @Transactional
+    public OrderStatusUpdateResponseDto updateOrderStatus(
+            Long userId,
+            String userRole,
+            UUID orderId,
+            OrderStatus nextStatus,
+            String reason
+    ) {
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ORDER_NOT_FOUND));
+
+        validateStatusUpdatePermission(order, userId, userRole);
+        validateStatusTransition(order.getOrderStatus(), nextStatus);
+
+        OrderStatus previousStatus = order.getOrderStatus();
+
+        order.changeStatus(nextStatus);
+
+        OrderStatusHistory history = OrderStatusHistory.create(
+                order,
+                previousStatus,
+                nextStatus,
+                userId,
+                userRole,
+                reason
+        );
+
+        orderStatusHistoryRepository.save(history);
+
+        return OrderStatusUpdateResponseDto.from(order);
+    }
+
+    // 권한 문자열을 UserRole Enum으로 변환 메서드
+    private UserRole parseUserRole(String authority) {
+        if (authority == null || !authority.startsWith("ROLE_")) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        String roleName = authority.substring("ROLE_".length());
+
+        try {
+            return UserRole.valueOf(roleName);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    // Enum으로 변환하여 권한 검증 메서드
+    private void validateStatusUpdatePermission(
+            Order order,
+            Long userId,
+            String authority
+    ) {
+        UserRole userRole = parseUserRole(authority);
+
+        if (userRole != UserRole.OWNER
+                && userRole != UserRole.MANAGER
+                && userRole != UserRole.MASTER) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        // TODO: Store 도메인 연동 후 OWNER가 본인 가게 주문만 변경 가능하도록 검증
+    }
+
+    //상태 전이 검증 메서드
+    private void validateStatusTransition(
+            OrderStatus currentStatus,
+            OrderStatus nextStatus
+    ) {
+        if (currentStatus == nextStatus) {
+            throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        boolean isValid = switch (currentStatus) {
+            case PENDING -> nextStatus == OrderStatus.ACCEPTED
+                    || nextStatus == OrderStatus.CANCELED;
+
+            case ACCEPTED -> nextStatus == OrderStatus.COOKING
+                    || nextStatus == OrderStatus.CANCELED;
+
+            case COOKING -> nextStatus == OrderStatus.DELIVERING
+                    || nextStatus == OrderStatus.CANCELED;
+
+            case DELIVERING -> nextStatus == OrderStatus.COMPLETED;
+
+            case COMPLETED, CANCELED -> false;
+        };
+
+        if (!isValid) {
+            throw new CustomException(ErrorCode.INVALID_ORDER_STATUS);
         }
     }
 }

@@ -5,8 +5,10 @@ import com.sparta.spartachallenge8282.category.domain.CategoryRepository;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryCreateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryUpdateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryResponse;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +21,7 @@ import java.util.UUID;
 /**
  * 카테고리 비즈니스 로직.
  *
- * <p>조회는 클래스 기본 {@code @Transactional(readOnly = true)}, 쓰기 메서드만 {@code @Transactional} 로 오버라이드한다.
+ * 조회는 클래스 기본 @Transactional(readOnly = true), 쓰기 메서드만 @Transactional 로 오버라이드한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public UUID createCategory(CategoryCreateRequest request) {
@@ -52,10 +55,11 @@ public class CategoryService {
 
     public Page<CategoryResponse> getCategoryList(String keyword, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // keyword 없으면 LIKE '%%'로 전체 조회
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
 
         // 공개 조회는 활성 항목만 노출한다.
         // TODO(관리자 확장): 비활성 포함 전체 조회는 admin 엔드포인트에서 searchCategories에 isActive를 전달해 재사용한다.
-        return categoryRepository.searchCategories(searchKeyword, true, pageable)
+        return categoryRepository.searchCategories(searchKeyword, true, normalizedPageable)
                 .map(CategoryResponse::from);
     }
 
@@ -86,7 +90,9 @@ public class CategoryService {
             throw new CustomException(ErrorCode.ALREADY_DELETED_CATEGORY);
         }
 
-        // TODO: CATEGORY_IN_USE — 이 category 를 참조하는 store 가 있으면 예외 (StoreRepository 필요, Store 머지 후)
+        if (storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)) {
+            throw new CustomException(ErrorCode.CATEGORY_IN_USE);
+        }
 
         category.softDelete(userId);
         return category.getDeletedAt();

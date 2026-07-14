@@ -12,6 +12,7 @@ import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionRes
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class RegionController {
 
     private final RegionService regionService;
 
-    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_MASTER')")
     @PostMapping
     public ResponseEntity<ApiResponse<RegionCreateResponse>> createRegion(
             @Valid @RequestBody RegionCreateRequest request) {
@@ -48,13 +49,13 @@ public class RegionController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<RegionResponse>>> getRegionList(
             @RequestParam(required = false) String keyword,
-            @PageableDefault(size = 10, sort = "sortOrder") Pageable pageable) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<RegionResponse> data =
                 PageResponse.from(regionService.getRegionList(keyword, pageable));
         return ResponseEntity.ok(ApiResponse.success("지역 목록 조회 성공", data));
     }
 
-    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_MASTER')")
     @PatchMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionResponse>> updateRegion(
             @PathVariable UUID regionId,
@@ -63,7 +64,7 @@ public class RegionController {
                 ApiResponse.success("지역 수정 완료", regionService.updateRegion(regionId, request)));
     }
 
-    @PreAuthorize("hasAnyRole('MANAGER','MASTER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_MANAGER', 'ROLE_MASTER')")
     @DeleteMapping("/{regionId}")
     public ResponseEntity<ApiResponse<RegionDeleteResponse>> deleteRegion(
             @PathVariable UUID regionId,

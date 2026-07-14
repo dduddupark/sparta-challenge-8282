@@ -7,6 +7,7 @@ import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionUpdateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +36,9 @@ class RegionServiceTest {
 
     @Mock
     private RegionRepository regionRepository;
+
+    @Mock
+    private StoreRepository storeRepository;
 
     @InjectMocks
     private RegionService regionService;
@@ -138,15 +142,16 @@ class RegionServiceTest {
     void 목록조회_keyword가_null이면_빈문자열로_검색한다() {
         // given
         Pageable pageable = PageRequest.of(0, 3);
-        Page<Region> page = new PageImpl<>(List.of(), pageable, 0);
+        Pageable normalized = PageRequest.of(0, 10);
+        Page<Region> page = new PageImpl<>(List.of(), normalized, 0);
 
-        given(regionRepository.searchRegions("", true, pageable)).willReturn(page);
+        given(regionRepository.searchRegions("", true, normalized)).willReturn(page);
 
         // when
         regionService.getRegionList(null, pageable);
 
         // then
-        verify(regionRepository).searchRegions("", true, pageable);
+        verify(regionRepository).searchRegions("", true, normalized);
     }
 
     @Test
@@ -223,6 +228,7 @@ class RegionServiceTest {
         ReflectionTestUtils.setField(region, "id", id);
 
         given(regionRepository.findById(id)).willReturn(Optional.of(region));
+        given(storeRepository.existsByRegion_IdAndDeletedAtIsNull(id)).willReturn(false);
 
         // when
         LocalDateTime deletedAt = regionService.deleteRegion(id, userId);
@@ -232,6 +238,27 @@ class RegionServiceTest {
         assertThat(region.isDeleted()).isTrue();
         assertThat(region.getDeletedAt()).isEqualTo(deletedAt);
         assertThat(region.getDeletedBy()).isEqualTo(userId);
+    }
+
+    @Test
+    void 지역삭제_사용중인_지역이면_REGION_IN_USE를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Region region = Region.builder()
+                .name("광화문").sortOrder(1).isActive(true).isServiceAvailable(false)
+                .build();
+        ReflectionTestUtils.setField(region, "id", id);
+
+        given(regionRepository.findById(id)).willReturn(Optional.of(region));
+        given(storeRepository.existsByRegion_IdAndDeletedAtIsNull(id)).willReturn(true);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> regionService.deleteRegion(id, 1L));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REGION_IN_USE);
+        assertThat(region.isDeleted()).isFalse();
     }
 
     @Test
