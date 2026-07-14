@@ -419,7 +419,6 @@ class OrderServiceTest {
                 .status(status)
                 .badge(MenuBadge.NONE)
                 .isHidden(hidden)
-                .isAiGenerated(false)
                 .build();
 
         /*
