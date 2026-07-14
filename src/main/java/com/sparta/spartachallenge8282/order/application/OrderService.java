@@ -6,15 +6,14 @@ import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
+import com.sparta.spartachallenge8282.option.domain.MenuOption;
+import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
+import com.sparta.spartachallenge8282.order.domain.*;
 import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderItemRequestDto;
-import com.sparta.spartachallenge8282.order.domain.Order;
-import com.sparta.spartachallenge8282.order.domain.OrderItem;
-import com.sparta.spartachallenge8282.order.domain.OrderStatusHistory;
-import com.sparta.spartachallenge8282.order.domain.OrderStatus;
 import com.sparta.spartachallenge8282.order.presentation.dto.response.*;
-import com.sparta.spartachallenge8282.order.domain.OrderRepository;
 import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
-import com.sparta.spartachallenge8282.order.domain.OrderStatusHistoryRepository;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +61,17 @@ public class OrderService {
      * - 메뉴 가격, 이름, 가게, 판매 상태 제공*/
     private final MenuRepository menuRepository;
 
+    /**
+     * 주문 생성 시 클라이언트가 선택한 메뉴 옵션 조회.
+     */
+    private final MenuOptionRepository menuOptionRepository;
+
+    /**
+     * 선택한 옵션이 현재 메뉴의 옵션 그룹에 속하는지 검증,
+     * 옵션 그룹명과 선택 개수 정책을 확인.
+     */
+    private final MenuOptionGroupRepository menuOptionGroupRepository;
+
     /*
     주문 생성 흐름 생성(메서드 이용한 함수 호출)
     orderitem생성 -> 메뉴 총액 계산 -> 주문 생성 -> 연관관계 -> 저장
@@ -93,8 +103,9 @@ public class OrderService {
         return OrderCreateResponseDto.from(savedOrder);
     }
 
-    /*
-    요청 DTO의 상품 목록을 실제 OrderItem 목록으로 변환
+    /**
+     * 주문 요청에 포함된 상품 목록을
+     * 실제 OrderItem 목록으로 변환한다.
      */
     private List<OrderItem> createOrderItems(
             OrderCreateRequestDto request
@@ -109,22 +120,113 @@ public class OrderService {
                 )
                 .toList();
     }
-    // 주문 당시 메뉴 정보를 orderitem에 주입
+
+    /**
+     * 요청 DTO의 상품 목록을 실제 OrderItem 목록으로 변환
+     * 주문 요청의 메뉴 및 옵션 정보를 기반으로 주문 상품 스냅샷 생성.
+     */
     private OrderItem createOrderItem(
             UUID requestStoreId,
             OrderItemRequestDto itemRequest
     ) {
+        // 1. 실제 메뉴를 조회하고 주문 가능한 메뉴인지 검증
         Menu menu = findOrderableMenu(
                 itemRequest.menuId(),
                 requestStoreId
         );
 
-        return new OrderItem(
+        // 2. 주문 당시 메뉴 정보로 OrderItem 생성
+        OrderItem orderItem = new OrderItem(
                 menu.getId(),
                 menu.getName(),
                 menu.getPrice(),
                 itemRequest.quantity()
         );
+
+        // 3. 요청으로 전달된 optionIds를 주문 옵션 스냅샷으로 변환
+        List<OrderItemOption> orderItemOptions =
+                createOrderItemOptions(
+                        menu.getId(),
+                        itemRequest.optionIds()
+                );
+
+        // 4. 주문 상품에 옵션을 연결
+        // addOption() 내부에서 양방향 연관관계와 금액 재계산 처리
+        orderItemOptions.forEach(orderItem::addOption);
+
+        return orderItem;
+    }
+
+    /**
+     * 클라이언트가 선택한 메뉴 옵션을 조회하여
+     * 주문 당시의 OrderItemOption 스냅샷으로 변환.
+     */
+    private List<OrderItemOption> createOrderItemOptions(
+            UUID menuId,
+            List<UUID> optionIds
+    ) {
+        // 옵션이 없는 메뉴를 위해 null을 빈 목록으로 정규화
+        List<UUID> normalizedOptionIds =
+                optionIds == null
+                        ? List.of()
+                        : optionIds;
+
+        // 선택한 옵션이 없으면 빈 목록 반환
+        if (normalizedOptionIds.isEmpty()) {
+            return List.of();
+        }
+
+        // 삭제되지 않은 선택 옵션들을 한 번에 조회
+        List<MenuOption> selectedOptions =
+                menuOptionRepository
+                        .findAllByIdInAndDeletedAtIsNull(
+                                normalizedOptionIds
+                        );
+
+        // 현재 메뉴에 속한 옵션 그룹 전체 조회
+        List<MenuOptionGroup> optionGroups =
+                menuOptionGroupRepository
+                        .findAllByMenuIdAndDeletedAtIsNull(
+                                menuId
+                        );
+
+        return selectedOptions.stream()
+                .map(option -> {
+                    MenuOptionGroup optionGroup =
+                            findOptionGroup(
+                                    option.getOptionGroupId(),
+                                    optionGroups
+                            );
+
+                    return OrderItemOption.create(
+                            option.getId(),
+                            optionGroup.getId(),
+                            optionGroup.getName(),
+                            option.getName(),
+                            option.getAdditionalPrice()
+                    );
+                })
+                .toList();
+    }
+    /**
+     * 선택한 옵션이 속한 옵션 그룹을 찾는다.
+     * 현재 메뉴의 옵션 그룹 목록에서 찾을 수 없다면
+     * 다른 메뉴의 옵션을 선택한 것으로 판단한다.
+     */
+    private MenuOptionGroup findOptionGroup(
+            UUID optionGroupId,
+            List<MenuOptionGroup> optionGroups
+    ) {
+        return optionGroups.stream()
+                .filter(group ->
+                        group.getId().equals(optionGroupId)
+                )
+                .findFirst()
+                .orElseThrow(() ->
+                        new CustomException(
+                                ErrorCode.INVALID_MENU_OPTION
+                        )
+                );
     }
 
     //삭제 되지 않은 주문인지 검증

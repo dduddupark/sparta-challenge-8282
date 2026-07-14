@@ -6,6 +6,10 @@ import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
+import com.sparta.spartachallenge8282.option.domain.MenuOption;
+import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
 import com.sparta.spartachallenge8282.order.application.OrderService;
 import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderItemRequestDto;
@@ -68,6 +72,18 @@ class OrderServiceTest {
     @Mock
     private MenuRepository menuRepository;
 
+    /**
+     * 선택한 메뉴 옵션 조회를 담당하는 가짜 Repository
+     */
+    @Mock
+    private MenuOptionRepository menuOptionRepository;
+
+    /**
+     * 메뉴별 옵션 그룹 조회를 담당하는 가짜 Repository
+     */
+    @Mock
+    private MenuOptionGroupRepository menuOptionGroupRepository;
+
 
 
     /**
@@ -94,7 +110,9 @@ class OrderServiceTest {
                 orderStatusHistoryRepository,
                 storeRepository,
                 paymentService,
-                menuRepository
+                menuRepository,
+                menuOptionRepository,
+                menuOptionGroupRepository
         );
 
         customerId = 1L;
@@ -542,5 +560,171 @@ class OrderServiceTest {
         // 메뉴 합계 25000원 + 배송비 3000원 = 총 28000원
         assertThat(savedOrder.getTotalPrice())
                 .isEqualTo(28000);
+    }
+
+    @Test
+    @DisplayName("메뉴 옵션을 포함하여 주문을 생성할 수 있다")
+    void createOrder_withOption_success() {
+        // given
+
+        // 1. 주문할 메뉴 생성
+        Menu menu = createMenu(
+                menuId,
+                storeId,
+                "불고기버거",
+                8000,
+                MenuStatus.ON_SALE,
+                false
+        );
+
+        // 2. 옵션 그룹과 옵션 ID 준비
+        UUID optionGroupId = UUID.randomUUID();
+        UUID cheeseOptionId = UUID.randomUUID();
+
+        /*
+         * 옵션 그룹 생성
+         *
+         * 추가 선택 그룹
+         * - 필수 아님
+         * - 최소 0개
+         * - 최대 2개
+         * - 활성 상태
+         */
+        MenuOptionGroup optionGroup =
+                MenuOptionGroup.builder()
+                        .menuId(menuId)
+                        .name("추가 선택")
+                        .isRequired(false)
+                        .minSelect(0)
+                        .maxSelect(2)
+                        .sortOrder(1)
+                        .isActive(true)
+                        .build();
+
+        ReflectionTestUtils.setField(
+                optionGroup,
+                "id",
+                optionGroupId
+        );
+
+        /*
+         * 치즈 추가 옵션 생성
+         * 추가 금액: 1,000원
+         */
+        MenuOption cheeseOption =
+                MenuOption.builder()
+                        .optionGroupId(optionGroupId)
+                        .name("치즈 추가")
+                        .additionalPrice(1000)
+                        .sortOrder(1)
+                        .isActive(true)
+                        .build();
+
+        ReflectionTestUtils.setField(
+                cheeseOption,
+                "id",
+                cheeseOptionId
+        );
+
+        // 3. 메뉴 2개와 치즈 옵션을 주문하는 요청 생성
+        OrderItemRequestDto orderItemRequest =
+                new OrderItemRequestDto(
+                        menuId,
+                        2,
+                        List.of(cheeseOptionId)
+                );
+
+        OrderCreateRequestDto request =
+                new OrderCreateRequestDto(
+                        storeId,
+                        "서울특별시 종로구",
+                        "101동 1001호",
+                        "문 앞에 놓아주세요.",
+                        List.of(orderItemRequest)
+                );
+
+        // 4. Repository Mock 동작 설정
+        when(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .thenReturn(Optional.of(menu));
+
+        when(menuOptionGroupRepository
+                .findAllByMenuIdAndDeletedAtIsNull(menuId))
+                .thenReturn(List.of(optionGroup));
+
+        when(menuOptionRepository
+                .findAllByIdInAndDeletedAtIsNull(
+                        List.of(cheeseOptionId)
+                ))
+                .thenReturn(List.of(cheeseOption));
+
+        when(orderRepository.save(any(Order.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0)
+                );
+
+        // when
+        orderService.createOrder(customerId, request);
+
+        // then
+
+        // 실제 save()에 전달된 Order를 가져온다.
+        ArgumentCaptor<Order> orderCaptor =
+                ArgumentCaptor.forClass(Order.class);
+
+        verify(orderRepository)
+                .save(orderCaptor.capture());
+
+        Order savedOrder = orderCaptor.getValue();
+
+        // 주문 상품은 한 종류
+        assertThat(savedOrder.getOrderItems())
+                .hasSize(1);
+
+        OrderItem savedOrderItem =
+                savedOrder.getOrderItems().get(0);
+
+        /*
+         * 계산:
+         * (메뉴 8,000원 + 치즈 옵션 1,000원) × 수량 2개
+         * = 18,000원
+         */
+        assertThat(savedOrderItem.getTotalPrice())
+                .isEqualTo(18000);
+
+        // 주문 메뉴 총액에도 옵션 금액이 포함되어야 한다.
+        assertThat(savedOrder.getMenuTotalPrice())
+                .isEqualTo(18000);
+
+        /*
+         * 총 주문 금액:
+         * 메뉴 및 옵션 금액 18,000원
+         * + 배달비 3,000원
+         * = 21,000원
+         */
+        assertThat(savedOrder.getTotalPrice())
+                .isEqualTo(21000);
+
+        // 선택한 옵션이 주문 상품에 저장됐는지 확인
+        assertThat(savedOrderItem.getOptions())
+                .hasSize(1);
+
+        assertThat(savedOrderItem.getOptions().get(0).getMenuOptionId())
+                .isEqualTo(cheeseOptionId);
+
+        assertThat(savedOrderItem.getOptions().get(0).getOptionGroupId())
+                .isEqualTo(optionGroupId);
+
+        assertThat(savedOrderItem.getOptions().get(0).getOptionGroupName())
+                .isEqualTo("추가 선택");
+
+        assertThat(savedOrderItem.getOptions().get(0).getOptionName())
+                .isEqualTo("치즈 추가");
+
+        assertThat(savedOrderItem.getOptions().get(0).getAdditionalPrice())
+                .isEqualTo(1000);
+
+        // 양방향 연관관계 확인
+        assertThat(savedOrderItem.getOptions().get(0).getOrderItem())
+                .isSameAs(savedOrderItem);
     }
 }
