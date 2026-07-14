@@ -50,9 +50,11 @@ public class MenuOptionController {
     @PostMapping("/option-groups/{optionGroupId}/options")
     public ResponseEntity<ApiResponse<MenuOptionCreateResponse>> createOption(
             @PathVariable UUID optionGroupId,
-            @Valid @RequestBody MenuOptionCreateRequest request) {
+            @Valid @RequestBody MenuOptionCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("옵션 생성 완료", optionService.createOption(optionGroupId, request)));
+                .body(ApiResponse.success("옵션 생성 완료",
+                        optionService.createOption(optionGroupId, request, userDetails)));
     }
 
     @GetMapping("/option-groups/{optionGroupId}/options")
@@ -77,9 +79,10 @@ public class MenuOptionController {
     @PatchMapping("/options/{optionId}")
     public ResponseEntity<ApiResponse<MenuOptionResponse>> updateOption(
             @PathVariable UUID optionId,
-            @Valid @RequestBody MenuOptionUpdateRequest request) {
+            @Valid @RequestBody MenuOptionUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 수정 완료", optionService.updateOption(optionId, request)));
+                ApiResponse.success("옵션 수정 완료", optionService.updateOption(optionId, request, userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
@@ -88,6 +91,6 @@ public class MenuOptionController {
             @PathVariable UUID optionId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 삭제 완료", optionService.deleteOption(optionId, userDetails.userId())));
+                ApiResponse.success("옵션 삭제 완료", optionService.deleteOption(optionId, userDetails)));
     }
 }

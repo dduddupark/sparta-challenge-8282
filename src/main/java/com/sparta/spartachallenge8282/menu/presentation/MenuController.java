@@ -53,9 +53,10 @@ public class MenuController {
     @PostMapping("/stores/{storeId}/menus")
     public ResponseEntity<ApiResponse<MenuCreateResponse>> createMenu(
             @PathVariable UUID storeId,
-            @Valid @RequestBody MenuCreateRequest request) {
+            @Valid @RequestBody MenuCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("메뉴 생성 완료", menuService.createMenu(storeId, request)));
+                .body(ApiResponse.success("메뉴 생성 완료", menuService.createMenu(storeId, request, userDetails)));
     }
 
     @GetMapping("/menus/{menuId}")
@@ -80,18 +81,21 @@ public class MenuController {
     @PatchMapping("/menus/{menuId}")
     public ResponseEntity<ApiResponse<MenuResponse>> updateMenu(
             @PathVariable UUID menuId,
-            @Valid @RequestBody MenuUpdateRequest request) {
+            @Valid @RequestBody MenuUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("메뉴 수정 완료", menuService.updateMenu(menuId, request)));
+                ApiResponse.success("메뉴 수정 완료", menuService.updateMenu(menuId, request, userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
     @PatchMapping("/menus/{menuId}/ai-description")
     public ResponseEntity<ApiResponse<MenuResponse>> updateAiDescription(
             @PathVariable UUID menuId,
-            @Valid @RequestBody MenuAiDescriptionUpdateRequest request) {
+            @Valid @RequestBody MenuAiDescriptionUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("AI 메뉴 설명 적용 완료", menuService.applyAiDescription(menuId, request.description())));
+                ApiResponse.success("AI 메뉴 설명 적용 완료",
+                        menuService.applyAiDescription(menuId, request.description(), userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
@@ -100,6 +104,6 @@ public class MenuController {
             @PathVariable UUID menuId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("메뉴 삭제 완료", menuService.deleteMenu(menuId, userDetails.userId())));
+                ApiResponse.success("메뉴 삭제 완료", menuService.deleteMenu(menuId, userDetails)));
     }
 }

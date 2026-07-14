@@ -20,8 +20,8 @@ import java.util.UUID;
 /**
  * 가게의 판매 메뉴 엔티티.
  *
- * <p>메뉴는 가게(store)에 종속된다. Store 엔티티가 아직 없어 {@code storeId} 를 단순 UUID 컬럼으로
- * 선개발한다 — 컬럼명이 동일하므로 이후 {@code @ManyToOne} 연관관계로 전환해도 스키마 변경이 없다.
+ * <p>메뉴는 가게(store)에 종속된다. 현재는 도메인 간 결합을 낮추기 위해 연관관계 대신
+ * {@code storeId} 를 단순 UUID 컬럼으로 보관하고, Service 에서 Store 존재 여부와 소유권을 검증한다.
  *
  * <p>가격 음수 방어는 3중이다: DTO {@code @Min(0)} → Service {@code INVALID_MENU_PRICE}
  * → DB {@code @Check(price >= 0)}. {@code ddl-auto=update} 는 기존 테이블에 CHECK 를 추가하지 못하므로
@@ -41,7 +41,7 @@ public class Menu extends BaseEntity {
     private UUID id;
 
     // order 접점: 주문 생성 시 "주문한 메뉴가 이 가게 소속인지" 검증에 사용된다 (order 도메인의 MENU_STORE_MISMATCH).
-    //            메뉴 쓰기 권한(OWNER 본인 가게)도 이 storeId 로 소유권을 확인한다 (NO_MENU_PERMISSION, auth 브랜치).
+    //            메뉴 쓰기 권한(OWNER 본인 가게)도 이 storeId 로 소유권을 확인한다 (NO_MENU_PERMISSION).
     @Column(name = "store_id", nullable = false)
     private UUID storeId;
 
