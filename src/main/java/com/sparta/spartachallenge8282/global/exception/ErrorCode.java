@@ -103,7 +103,9 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS(50002, HttpStatus.BAD_REQUEST, "유효하지 않은 주문 상태 전이입니다."),
     ORDER_CANCEL_NOT_ALLOWED(50003, HttpStatus.BAD_REQUEST, "주문 접수 후 5분이 지나 취소할 수 없습니다."),
     MINIMUM_ORDER_AMOUNT_NOT_MET(50004, HttpStatus.BAD_REQUEST, "최소 주문 금액을 충족하지 못했습니다."),
-
+    MENU_STORE_MISMATCH(50005, HttpStatus.BAD_REQUEST, "주문한 메뉴가 요청한 가게의 메뉴가 아닙니다."),
+    HIDDEN_MENU_NOT_ORDERABLE(50006, HttpStatus.BAD_REQUEST, "숨김 처리된 메뉴는 주문할 수 없습니다."),
+    MENU_NOT_ORDERABLE(50007, HttpStatus.BAD_REQUEST, "현재 판매 중인 메뉴가 아닙니다."),
 
     // ── Payment (60001 ~ 69999) ───────────────────────────────────────────────
     PAYMENT_NOT_FOUND(60001, HttpStatus.NOT_FOUND, "결제 정보를 찾을 수 없습니다."),
