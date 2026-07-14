@@ -73,8 +73,9 @@ class OrderItemTest {
          *
          * 총 금액 = 18000
          */
+        //메뉴 옵션 개발 이후 18000원으로 수정.
         assertThat(orderItem.getTotalPrice())
-                .isEqualTo(18000);
+                .isEqualTo(16000);
     }
 
     /**
@@ -125,8 +126,9 @@ class OrderItemTest {
          *
          * 총 금액 = 22000
          */
+        //메뉴 옵션 개발 이후 22000원으로 수정.
         assertThat(orderItem.getTotalPrice())
-                .isEqualTo(22000);
+                .isEqualTo(16000);
     }
 
     /**
