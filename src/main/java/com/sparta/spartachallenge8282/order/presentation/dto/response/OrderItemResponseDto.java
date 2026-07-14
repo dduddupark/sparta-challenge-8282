@@ -1,6 +1,6 @@
-package com.sparta.spartachallenge8282.order.dto.response;
+package com.sparta.spartachallenge8282.order.presentation.dto.response;
 
-import com.sparta.spartachallenge8282.order.entity.OrderItem;
+import com.sparta.spartachallenge8282.order.domain.OrderItem;
 
 import java.util.List;
 import java.util.UUID;

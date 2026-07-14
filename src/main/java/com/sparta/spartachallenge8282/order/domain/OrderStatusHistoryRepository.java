@@ -1,6 +1,5 @@
-package com.sparta.spartachallenge8282.order.repository;
+package com.sparta.spartachallenge8282.order.domain;
 
-import com.sparta.spartachallenge8282.order.entity.OrderStatusHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;

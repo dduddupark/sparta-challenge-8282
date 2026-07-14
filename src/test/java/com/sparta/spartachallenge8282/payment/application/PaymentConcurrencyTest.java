@@ -2,8 +2,8 @@ package com.sparta.spartachallenge8282.payment.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
-import com.sparta.spartachallenge8282.order.entity.Order;
-import com.sparta.spartachallenge8282.order.repository.OrderRepository;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderRepository;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
 import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
 import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;

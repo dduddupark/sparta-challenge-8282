@@ -1,7 +1,7 @@
-package com.sparta.spartachallenge8282.order.dto.response;
+package com.sparta.spartachallenge8282.order.presentation.dto.response;
 
-import com.sparta.spartachallenge8282.order.entity.Order;
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

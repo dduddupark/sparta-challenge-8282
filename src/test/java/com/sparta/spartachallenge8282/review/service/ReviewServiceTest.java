@@ -1,9 +1,9 @@
 package com.sparta.spartachallenge8282.review.service;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
-import com.sparta.spartachallenge8282.order.entity.Order;
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
-import com.sparta.spartachallenge8282.order.repository.OrderRepository;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderStatus;
+import com.sparta.spartachallenge8282.order.domain.OrderRepository;
 import com.sparta.spartachallenge8282.review.application.ReviewService;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewResultResponseDto;

@@ -1,8 +1,6 @@
-package com.sparta.spartachallenge8282.order.entity;
+package com.sparta.spartachallenge8282.order.domain;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
-import com.sparta.spartachallenge8282.order.entity.OrderItem;
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

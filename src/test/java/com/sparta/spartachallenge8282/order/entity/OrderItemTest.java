@@ -1,5 +1,7 @@
 package com.sparta.spartachallenge8282.order.entity;
 
+import com.sparta.spartachallenge8282.order.domain.OrderItem;
+import com.sparta.spartachallenge8282.order.domain.OrderItemOption;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
