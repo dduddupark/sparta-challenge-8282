@@ -161,6 +161,64 @@ public class Store extends BaseEntity {
                 .build();
     }
 
+    public void update(
+            Category category,
+            Region region,
+            String storeName,
+            String storeTel,
+            String storeImage,
+            String address,
+            Integer minOrderPrice,
+            Integer deliveryFee,
+            Integer freeDeliveryAmount,
+            LocalTime openTime,
+            LocalTime closeTime)
+    {
+        if (category != null) {
+            this.category = category;
+        }
+
+        if (region != null) {
+            this.region = region;
+        }
+
+        if (storeName != null && !storeName.isBlank()) {
+            this.storeName = storeName;
+        }
+
+        if (storeTel != null && !storeTel.isBlank()) {
+            this.storeTel = storeTel;
+        }
+
+        if (storeImage != null) {
+            this.storeImage = storeImage;
+        }
+
+        if (address != null && !address.isBlank()) {
+            this.address = address;
+        }
+
+        if (minOrderPrice != null) {
+            this.minOrderPrice = minOrderPrice;
+        }
+
+        if (deliveryFee != null) {
+            this.deliveryFee = deliveryFee;
+        }
+
+        if (freeDeliveryAmount != null) {
+            this.freeDeliveryAmount = freeDeliveryAmount;
+        }
+
+        if (openTime != null) {
+            this.openTime = openTime;
+        }
+
+        if (closeTime != null) {
+            this.closeTime = closeTime;
+        }
+    }
+
     public void activate(){
         this.operationStatus = StoreOperationStatus.ACTIVE;
     }
@@ -170,4 +228,15 @@ public class Store extends BaseEntity {
         this.isOpen = isOpen;
     }
 
+
+    public void requestDelete(){
+        this.operationStatus = StoreOperationStatus.CLOSE_REQUESTED;
+        this.isOpen = false;
+    }
+
+    public void approveDelete(Long adminId) {
+        this.operationStatus = StoreOperationStatus.CLOSED;
+        this.isOpen = false;
+        softDelete(adminId);
+    }
 }

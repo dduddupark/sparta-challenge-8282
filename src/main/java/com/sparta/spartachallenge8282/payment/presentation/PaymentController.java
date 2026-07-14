@@ -1,17 +1,19 @@
-package com.sparta.spartachallenge8282.payment.controller;
+package com.sparta.spartachallenge8282.payment.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
+import com.sparta.spartachallenge8282.global.exception.CustomException;
+import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCancelRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentRefundRequest;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCancelResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCreateResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentRefundResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentResponse;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
-import com.sparta.spartachallenge8282.payment.service.PaymentService;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCancelResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCreateResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentRefundResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentResponse;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.application.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,14 +46,21 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     // ── 10.1 결제 생성 ──────────────────────────────────────────────────────────
+    // 결제 생성은 주문 소유자(CUSTOMER)의 self-service 액션이다. 서비스에서 order.userId == 요청자
+    // 소유자 검증을 강제하므로, 남의 주문을 결제할 수 없는 CUSTOMER 로 롤을 한정한다.
     @PostMapping("/api/v1/payments")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyAuthority('ROLE_CUSTOMER', 'ROLE_MANAGER', 'ROLE_MASTER')")
+    @PreAuthorize("hasAuthority('ROLE_CUSTOMER')")
     public ApiResponse<PaymentCreateResponse> createPayment(
             @Valid @RequestBody PaymentCreateRequest request,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(value = "Idempotency-Key") String idempotencyKey,
             @AuthenticationPrincipal UserDetailsImpl user
     ) {
+        // Idempotency-Key 는 필수. 헤더 누락은 MissingRequestHeaderException(400) 으로,
+        // 값이 공백이면 여기서 400 으로 거부한다(공백 키는 멱등 보장을 무력화하므로).
+        if (idempotencyKey.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_PAYMENT_REQUEST);
+        }
         PaymentCreateResponse data =
                 paymentService.createPayment(request, user.userId(), idempotencyKey);
         return ApiResponse.success("결제가 완료되었습니다.", data);

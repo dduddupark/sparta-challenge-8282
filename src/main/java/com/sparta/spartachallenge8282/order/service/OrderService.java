@@ -10,6 +10,7 @@ import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
 import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.order.repository.OrderStatusHistoryRepository;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -219,18 +220,35 @@ public class OrderService {
         return OrderStatusUpdateResponseDto.from(order);
     }
 
-    // 권한 검증 메서드
+    // 권한 문자열을 UserRole Enum으로 변환 메서드
+    private UserRole parseUserRole(String authority) {
+        if (authority == null || !authority.startsWith("ROLE_")) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        String roleName = authority.substring("ROLE_".length());
+
+        try {
+            return UserRole.valueOf(roleName);
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    // Enum으로 변환하여 권한 검증 메서드
     private void validateStatusUpdatePermission(
             Order order,
             Long userId,
-            String userRole
+            String authority
     ) {
-        // TODO: User/Auth 연동 후 실제 권한 검증으로 변경
-        // TODO: Store 도메인 연동 후 OWNER가 본인 가게 주문만 변경 가능하도록 검증
+        UserRole userRole = parseUserRole(authority);
 
-        if (!"OWNER".equals(userRole) && !"MANAGER".equals(userRole)) {
+        if (userRole != UserRole.OWNER
+                && userRole != UserRole.MANAGER
+                && userRole != UserRole.MASTER) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
+        // TODO: Store 도메인 연동 후 OWNER가 본인 가게 주문만 변경 가능하도록 검증
     }
 
     //상태 전이 검증 메서드

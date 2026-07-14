@@ -1,7 +1,7 @@
-package com.sparta.spartachallenge8282.payment.repository;
+package com.sparta.spartachallenge8282.payment.domain;
 
-import com.sparta.spartachallenge8282.payment.entity.Payment;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.domain.Payment;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

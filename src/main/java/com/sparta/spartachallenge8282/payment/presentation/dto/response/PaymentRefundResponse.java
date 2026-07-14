@@ -1,7 +1,7 @@
-package com.sparta.spartachallenge8282.payment.dto.response;
+package com.sparta.spartachallenge8282.payment.presentation.dto.response;
 
-import com.sparta.spartachallenge8282.payment.entity.Payment;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.domain.Payment;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

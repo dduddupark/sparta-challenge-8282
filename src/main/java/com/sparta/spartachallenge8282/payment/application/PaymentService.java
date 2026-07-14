@@ -1,27 +1,33 @@
-package com.sparta.spartachallenge8282.payment.service;
+package com.sparta.spartachallenge8282.payment.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCancelRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentRefundRequest;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCancelResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCreateResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentRefundResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentResponse;
-import com.sparta.spartachallenge8282.payment.entity.Payment;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
-import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCancelResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCreateResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentRefundResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentResponse;
+import com.sparta.spartachallenge8282.payment.domain.Payment;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -33,66 +39,99 @@ import java.util.UUID;
  * <p>인터페이스/구현체 분리 없이 단일 {@code @Service} 클래스로 구성한다.
  * 금액 일치 검증, 중복 결제 방지, 상태 전이, 접근 권한(본인 주문 여부)을 담당한다.
  *
+ * <p><b>OWNER 가게 스코프 검증</b>: OWNER 는 <b>본인 가게 결제만</b> 조회/취소할 수 있다.
+ * {@code payment.order.storeId} 가 요청 OWNER 소유 가게인지 {@link StoreRepository} 로 대조하여
+ * 타 가게 결제 접근(IDOR)을 차단한다. (Store 도메인 연동 완료 — 과거 TODO 해소)
+ *
  * <p><b>제약(도메인 미완성)</b>
  * <ul>
- *   <li>OWNER "본인 가게" 검증: Store 도메인이 없어 롤 레벨(@PreAuthorize)까지만 검증하고
- *       가게 소유 여부는 TODO 로 남긴다.</li>
  *   <li>PG 연동 부재: transactionId 는 임시 채번한다.</li>
- *   <li>Idempotency-Key: {@code p_payment.idempotency_key} 에 저장하며, 동일 키 재요청은
- *       결제를 새로 만들지 않고 최초 결과를 그대로 반환한다(멱등). 순차 재시도는 사전 조회로,
- *       완전 동시 요청의 패자는 유니크 제약(60005)으로 방어한다.</li>
+ *   <li>Idempotency-Key: {@code p_payment.idempotency_key} 유니크 제약을 1차 방어선으로 삼는다.
+ *       사전 조회로 중복을 판별하지 않고 <b>먼저 INSERT 를 시도</b>한 뒤, 유니크 제약 위반이 나면
+ *       이미 저장된 결제와 이번 요청을 대조한다(insert-first). 같은 요청이면 최초 결과를 그대로
+ *       반환(멱등), 같은 키에 다른 요청이면 {@code PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010)} 로 거부한다.
+ *       이 방식은 사전조회-후-INSERT 사이의 경합(TOCTOU)을 원천 제거한다.</li>
  * </ul>
  */
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final StoreRepository storeRepository;
+    private final PlatformTransactionManager txManager;
 
-    // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값)
-    private static final String ROLE_CUSTOMER = "ROLE_CUSTOMER";
-    private static final String ROLE_OWNER    = "ROLE_OWNER";
-    private static final String ROLE_MANAGER  = "ROLE_MANAGER";
-    private static final String ROLE_MASTER   = "ROLE_MASTER";
+    // 롤 문자열 (user.role() 원문 — UserRole.getAuthority() 가 ROLE_ 접두사를 붙인 값과 동일).
+    // 하드코딩 대신 UserRole enum(SSOT)에서 파생시켜 역할 코드/표기 변경에 자동 동기화한다.
+    private static final String ROLE_CUSTOMER = UserRole.CUSTOMER.getAuthority();
+    private static final String ROLE_OWNER    = UserRole.OWNER.getAuthority();
+    private static final String ROLE_MANAGER  = UserRole.MANAGER.getAuthority();
+    private static final String ROLE_MASTER   = UserRole.MASTER.getAuthority();
 
     /**
-     * 결제 생성. {@code amount} 는 주문 금액과 일치해야 한다.
+     * 결제 생성. 요청자는 주문 소유자여야 하고(본인 주문만 결제), 주문은 결제 대기(PENDING) 상태여야 하며,
+     * {@code amount} 는 주문 금액과 일치해야 한다.
+     *
+     * <p><b>insert-first 멱등 처리</b> — 사전 조회 없이 곧바로 INSERT 를 시도한다(TOCTOU 경합 제거).
+     * {@code idempotency_key}/{@code order_id} 유니크 제약 위반이 나면 {@link #resolveConflict}
+     * 로 넘어가 이미 저장된 결제와 이번 요청을 대조한다.
+     *
+     * <p><b>트랜잭션 설계</b> — 이 메서드는 <b>트랜잭션 밖</b>(orchestrator)에서 동작한다.
+     * flush 중 {@link DataIntegrityViolationException} 이 나면 그 트랜잭션은 rollback-only 로
+     * 오염되므로, 같은 트랜잭션에서 재조회 후 정상 반환하면 커밋 시 예외가 난다.
+     * 따라서 INSERT 는 {@code insertTx}, 충돌 재조회는 별도의 {@code REQUIRES_NEW} 읽기
+     * 트랜잭션({@code resolveTx})으로 분리한다.
      *
      * @param request        결제 생성 요청 (orderId, amount, method)
      * @param userId         결제 요청자(로그인 사용자) ID
-     * @param idempotencyKey 중복 결제 방지 키(현재 미저장, 유니크 제약으로 대체)
+     * @param idempotencyKey 중복 결제 방지 키 (유니크 제약으로 멱등 보장)
      */
-    @Transactional
     public PaymentCreateResponse createPayment(PaymentCreateRequest request, Long userId, String idempotencyKey) {
         String key = normalizeKey(idempotencyKey);
 
-        // 0) 멱등 재요청 — 동일 키의 결제가 이미 있으면 새로 생성하지 않고 최초 결과를 그대로 반환.
-        //    클라이언트가 응답 유실로 재시도(같은 키 재전송)해도 결제는 딱 1건만 발생한다.
-        if (key != null) {
-            Optional<Payment> replayed = paymentRepository.findByIdempotencyKey(key);
-            if (replayed.isPresent()) {
-                return PaymentCreateResponse.from(replayed.get());
-            }
+        // 1) 곧바로 INSERT 시도 — 성공하면 그대로 반환.
+        //    (주변에 트랜잭션이 없으면 새 트랜잭션을, 있으면 참여한다 — REQUIRED)
+        TransactionTemplate insertTx = new TransactionTemplate(txManager);
+        try {
+            return insertTx.execute(status -> insertPayment(request, userId, key));
+        } catch (DataIntegrityViolationException e) {
+            // 2) 유니크 제약 위반 — 이미 저장된 결제와 이번 요청을 별도 트랜잭션에서 대조.
+            //    (오염된 INSERT 트랜잭션과 격리하기 위해 REQUIRES_NEW 로 커밋된 승자를 조회)
+            TransactionTemplate resolveTx = new TransactionTemplate(txManager);
+            resolveTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            resolveTx.setReadOnly(true);
+            return resolveTx.execute(status -> resolveConflict(request, userId, key));
         }
+    }
 
-        // 1) 주문 조회 (60004)
+    /**
+     * 결제 INSERT 본체. 주문 조회·금액 검증 후 저장한다. 유니크 제약 위반 시
+     * {@link DataIntegrityViolationException} 을 그대로 던져 호출부가 충돌을 판별하게 한다.
+     */
+    private PaymentCreateResponse insertPayment(PaymentCreateRequest request, Long userId, String key) {
+        // 주문 조회 (60004)
         Order order = orderRepository.findByIdAndDeletedAtIsNull(request.orderId())
                 .orElseThrow(() -> new CustomException(ErrorCode.PAYMENT_ORDER_NOT_FOUND));
 
-        // 2) 금액 일치 검증 (60006) — 요청 금액과 주문 총액이 같아야 함
+        // 소유자 검증 — 본인 주문에만 결제할 수 있다(남의 주문 결제 생성 = IDOR 차단).
+        if (!order.getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        // 주문 상태 검증 — 결제 대기(PENDING) 주문에만 결제 가능(취소/완료된 주문 결제 차단). (60011)
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new CustomException(ErrorCode.PAYMENT_ORDER_NOT_PAYABLE);
+        }
+
+        // 금액 일치 검증 (60006) — 요청 금액과 주문 총액이 같아야 함
         if (request.amount() != order.getTotalPrice()) {
             throw new CustomException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        // 3) 중복 결제 방지 (60005) — 주문당 결제 1건 (사전 체크: 빠른 실패 경로)
-        if (paymentRepository.existsByOrder_Id(order.getId())) {
-            throw new CustomException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
-        }
-
-        // 4) 결제 저장 (성공 처리 — PG 연동 부재로 transactionId 임시 채번)
+        // 결제 저장 (성공 처리 — PG 연동 부재로 transactionId 임시 채번).
+        // saveAndFlush 로 즉시 INSERT 를 발생시켜 유니크 제약 위반을 이 자리에서 노출한다.
         Payment payment = Payment.builder()
                 .order(order)
                 .amount(request.amount())
@@ -103,18 +142,45 @@ public class PaymentService {
                 .paidAt(LocalDateTime.now())
                 .build();
 
-        // 사전 체크를 통과한 동시 요청은 order_id(또는 idempotency_key) 유니크 제약에서 충돌한다.
-        // saveAndFlush 로 즉시 INSERT 를 발생시켜 이 트랜잭션 안에서 제약 위반을 잡고
-        // 500 대신 60005(중복 결제)로 변환한다.
-        // (동일 키의 완전 동시 요청 시 패자는 60005 를 받는다. 순차 재시도는 위 0) 단계에서 멱등 반환된다.)
-        try {
-            return PaymentCreateResponse.from(paymentRepository.saveAndFlush(payment));
-        } catch (DataIntegrityViolationException e) {
-            throw new CustomException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+        return PaymentCreateResponse.from(paymentRepository.saveAndFlush(payment));
+    }
+
+    /**
+     * 유니크 제약 위반 해소 — 이미 저장된 결제와 이번 요청을 대조한다.
+     *
+     * <ul>
+     *   <li>멱등키로 기존 결제를 찾고, 요청 지문(주문·금액·수단·소유자)이 <b>같으면</b>
+     *       최초 결과를 그대로 반환(진짜 멱등 재요청).</li>
+     *   <li>같은 키인데 요청 지문이 <b>다르면</b> {@code PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010)}.
+     *       소유자 불일치도 여기서 걸러 남의 결제 정보 노출(IDOR)을 차단한다.</li>
+     *   <li>키가 없거나 키로 못 찾은 충돌(=순수 주문 중복)이면 {@code PAYMENT_ALREADY_PROCESSED(60005)}.</li>
+     * </ul>
+     */
+    private PaymentCreateResponse resolveConflict(PaymentCreateRequest request, Long userId, String key) {
+        if (key != null) {
+            Optional<Payment> existing = paymentRepository.findByIdempotencyKey(key);
+            if (existing.isPresent()) {
+                Payment payment = existing.get();
+                if (isSameRequest(payment, request, userId)) {
+                    return PaymentCreateResponse.from(payment); // 최초 결과 그대로 반환 (멱등)
+                }
+                throw new CustomException(ErrorCode.PAYMENT_IDEMPOTENCY_KEY_CONFLICT); // 같은 키, 다른 요청
+            }
         }
+        // 멱등키 없음 또는 키로 못 찾음 → order_id 유니크 위반(주문당 결제 1건)
+        throw new CustomException(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+    }
+
+    /** 저장된 결제가 이번 요청과 동일한지(주문·금액·수단·소유자) 판별 — 멱등 재요청 여부 판정. */
+    private boolean isSameRequest(Payment payment, PaymentCreateRequest request, Long userId) {
+        return payment.getOrder().getId().equals(request.orderId())
+                && payment.getAmount().equals(request.amount())
+                && payment.getMethod() == request.method()
+                && payment.getOrder().getUserId().equals(userId);
     }
 
     /** 주문의 결제 내역 조회. */
+    @Transactional(readOnly = true)
     public PaymentResponse getPaymentByOrder(UUID orderId, UserDetailsImpl user) {
         // 주문 존재 여부 먼저 확인 (60004) → 결제 존재 여부 (60001)
         orderRepository.findByIdAndDeletedAtIsNull(orderId)
@@ -128,6 +194,7 @@ public class PaymentService {
     }
 
     /** 결제 단건 조회. */
+    @Transactional(readOnly = true)
     public PaymentResponse getPayment(UUID paymentId, UserDetailsImpl user) {
         Payment payment = findActivePayment(paymentId);
         validateReadAccess(payment, user);
@@ -135,6 +202,7 @@ public class PaymentService {
     }
 
     /** 결제 전체 목록 조회(관리자). status 는 선택 필터. */
+    @Transactional(readOnly = true)
     public Page<PaymentResponse> getPayments(PaymentStatus status, Pageable pageable) {
         Page<Payment> payments = (status == null)
                 ? paymentRepository.findByDeletedAtIsNull(pageable)
@@ -204,6 +272,7 @@ public class PaymentService {
     }
 
     /** 특정 유저 결제 내역 조회(관리자). */
+    @Transactional(readOnly = true)
     public Page<PaymentResponse> getUserPayments(Long userId, Pageable pageable) {
         // 유저 존재 검증 (60009) — 없는 유저면 빈 페이지가 아니라 명시적 404
         if (!userRepository.existsByIdAndDeletedAtIsNull(userId)) {
@@ -214,6 +283,7 @@ public class PaymentService {
     }
 
     /** 고객 본인 결제 목록 조회. (userId 는 인증 주체에서 도출 — 타인 조회 불가) */
+    @Transactional(readOnly = true)
     public Page<PaymentResponse> getMyPayments(UserDetailsImpl user, Pageable pageable) {
         return paymentRepository.findByOrder_UserIdAndDeletedAtIsNull(user.userId(), pageable)
                 .map(PaymentResponse::from);
@@ -232,8 +302,11 @@ public class PaymentService {
      */
     private void validateReadAccess(Payment payment, UserDetailsImpl user) {
         String role = user.role();
-        if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role) || ROLE_OWNER.equals(role)) {
-            // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
+        if (ROLE_MANAGER.equals(role) || ROLE_MASTER.equals(role)) {
+            return;
+        }
+        if (ROLE_OWNER.equals(role)) {
+            validateOwnerStoreScope(payment, user); // 본인 가게 결제만
             return;
         }
         if (ROLE_CUSTOMER.equals(role)) {
@@ -253,7 +326,7 @@ public class PaymentService {
             return;
         }
         if (ROLE_OWNER.equals(role)) {
-            // TODO: OWNER 는 본인 가게(payment.order.storeId) 결제인지 Store 도메인으로 검증
+            validateOwnerStoreScope(payment, user); // 본인 가게 결제만 취소
             return;
         }
         throw new CustomException(ErrorCode.ACCESS_DENIED);
@@ -278,6 +351,17 @@ public class PaymentService {
     /** 결제가 걸린 주문이 요청자 본인 것인지 검증. */
     private void validateOrderOwner(Payment payment, UserDetailsImpl user) {
         if (!payment.getOrder().getUserId().equals(user.userId())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+    }
+
+    /**
+     * 결제가 걸린 주문의 가게가 요청 OWNER 소유인지 검증.
+     * {@code order.storeId} 로 Store 소유 여부를 대조해 타 가게 결제 접근(IDOR)을 차단한다.
+     */
+    private void validateOwnerStoreScope(Payment payment, UserDetailsImpl user) {
+        UUID storeId = payment.getOrder().getStoreId();
+        if (!storeRepository.existsByIdAndOwner_IdAndDeletedAtIsNull(storeId, user.userId())) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }

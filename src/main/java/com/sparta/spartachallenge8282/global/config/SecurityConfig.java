@@ -44,21 +44,13 @@ public class SecurityConfig {
             "/actuator/health",
             "/api/users/signup",
             "/api/users/login",
-            // User 로그인 기능 구현 전 주문 생성 테스트를 위한 임시 허용
-            "/api/v1/orders",
-            "/api/v1/orders/{orderId}",
-            "/api/v1/orders/{orderId}/items",
-            "/api/v1/orders/{orderId}/cancel",
-            "/api/v1/orders/{orderId}/status",
             // Swagger (추후 추가 시)
             "/api/v1/auth/signup",
             "/api/v1/auth/login",
             "/api/v1/auth/reissue", // 토큰 재발급은 필터를 거치지 않거나 통과시킨다
             "/v3/api-docs/**",
             "/swagger-ui/**",
-            "/swagger-ui.html",
-            // User 로그인 기능 구현 전 주문 생성 테스트를 위한 임시 허용
-            "/api/v1/orders",
+            "/swagger-ui.html"
     };
 
     @Bean

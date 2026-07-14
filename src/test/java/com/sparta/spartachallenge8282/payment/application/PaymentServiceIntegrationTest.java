@@ -1,21 +1,30 @@
-package com.sparta.spartachallenge8282.payment.service;
+package com.sparta.spartachallenge8282.payment.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCancelRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentCreateRequest;
-import com.sparta.spartachallenge8282.payment.dto.request.PaymentRefundRequest;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCancelResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentCreateResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentRefundResponse;
-import com.sparta.spartachallenge8282.payment.dto.response.PaymentResponse;
-import com.sparta.spartachallenge8282.payment.entity.Payment;
-import com.sparta.spartachallenge8282.payment.entity.PaymentMethod;
-import com.sparta.spartachallenge8282.payment.entity.PaymentStatus;
-import com.sparta.spartachallenge8282.payment.repository.PaymentRepository;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCancelResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentCreateResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentRefundResponse;
+import com.sparta.spartachallenge8282.payment.presentation.dto.response.PaymentResponse;
+import com.sparta.spartachallenge8282.payment.domain.Payment;
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
+import com.sparta.spartachallenge8282.payment.domain.PaymentStatus;
+import com.sparta.spartachallenge8282.payment.domain.PaymentRepository;
+import com.sparta.spartachallenge8282.category.domain.Category;
+import com.sparta.spartachallenge8282.category.domain.CategoryRepository;
+import com.sparta.spartachallenge8282.region.domain.Region;
+import com.sparta.spartachallenge8282.region.domain.RegionRepository;
+import com.sparta.spartachallenge8282.store.domain.Store;
+import com.sparta.spartachallenge8282.store.domain.StoreApplication;
+import com.sparta.spartachallenge8282.store.domain.StoreApplicationRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.entity.User;
 import com.sparta.spartachallenge8282.user.entity.UserRole;
 import com.sparta.spartachallenge8282.user.repository.UserRepository;
@@ -28,6 +37,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +65,18 @@ class PaymentServiceIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
+
+    @Autowired
+    private StoreApplicationRepository storeApplicationRepository;
+
     @PersistenceContext
     private EntityManager em;
 
@@ -63,12 +85,17 @@ class PaymentServiceIntegrationTest {
 
     // ── 테스트 픽스처 ───────────────────────────────────────────────────────────
 
-    /** 예시 주문 저장. totalPrice = menuTotalPrice(=totalPrice) - 0 + 0 이 되도록 구성. */
+    /** 예시 주문 저장(임의 가게). totalPrice = menuTotalPrice(=totalPrice) - 0 + 0 이 되도록 구성. */
     private Order persistOrder(Long userId, int totalPrice) {
+        return persistOrder(userId, totalPrice, UUID.randomUUID());
+    }
+
+    /** 특정 가게(storeId)에 대한 예시 주문 저장. OWNER 가게 스코프 검증용. */
+    private Order persistOrder(Long userId, int totalPrice, UUID storeId) {
         Order order = Order.create(
                 "T" + UUID.randomUUID().toString().substring(0, 12), // 주문번호(<=30자, 유니크)
                 userId,
-                UUID.randomUUID(),          // storeId
+                storeId,
                 totalPrice,                 // menuTotalPrice
                 0,                          // discountAmount
                 0,                          // deliveryFee
@@ -77,6 +104,38 @@ class PaymentServiceIntegrationTest {
                 "문 앞에 두고 벨 눌러주세요."
         );
         return orderRepository.save(order);
+    }
+
+    /**
+     * OWNER 유저와 그 소유의 Store 를 저장하고 Store 를 반환한다.
+     * (OWNER 가게 스코프 검증: {@code store.owner.id} 로 본인 가게 여부를 대조하므로 실제 Store 가 필요)
+     */
+    private Store persistOwnedStore() {
+        String uniq = UUID.randomUUID().toString().substring(0, 8);
+        User owner = userRepository.save(User.builder()
+                .email("owner-" + uniq + "@test.com")
+                .password("encoded")
+                .nickname("owner")
+                .address("서울특별시 종로구 세종대로 172")
+                .role(UserRole.OWNER)
+                .build());
+        Category category = categoryRepository.save(Category.builder().name("한식-" + uniq).build());
+        Region region = regionRepository.save(Region.builder().name("종로구-" + uniq).build());
+        StoreApplication application = storeApplicationRepository.save(StoreApplication.builder()
+                .applicant(owner)
+                .category(category)
+                .region(region)
+                .storeName("테스트가게-" + uniq)
+                .storeTel("02-1234-5678")
+                .address("서울특별시 종로구 세종대로 172")
+                .minOrderPrice(10000)
+                .deliveryFee(3000)
+                .freeDeliveryAmount(20000)
+                .openTime(LocalTime.of(9, 0))
+                .closeTime(LocalTime.of(22, 0))
+                .build());
+        application.approve();
+        return storeRepository.save(Store.from(application));
     }
 
     /** 예시 유저 저장 후 생성된 PK 반환. */
@@ -96,13 +155,19 @@ class PaymentServiceIntegrationTest {
         return new UserDetailsImpl(userId, "customer" + userId + "@test.com", UserRole.CUSTOMER.getAuthority());
     }
 
-    private UserDetailsImpl owner() {
-        return new UserDetailsImpl(9L, "owner@test.com", UserRole.OWNER.getAuthority());
+    /** 특정 ownerId 로 OWNER 인증 주체 구성. */
+    private UserDetailsImpl owner(Long ownerId) {
+        return new UserDetailsImpl(ownerId, "owner" + ownerId + "@test.com", UserRole.OWNER.getAuthority());
     }
 
-    /** 예시 주문 + 결제(PAID) 생성 후 결제 응답 반환. */
+    /** 예시 주문 + 결제(PAID) 생성 후 결제 응답 반환(임의 가게). */
     private PaymentCreateResponse createPaidPayment(Long userId, int amount) {
-        Order order = persistOrder(userId, amount);
+        return createPaidPayment(userId, amount, UUID.randomUUID());
+    }
+
+    /** 특정 가게(storeId) 주문 + 결제(PAID) 생성 후 결제 응답 반환. OWNER 가게 스코프 검증용. */
+    private PaymentCreateResponse createPaidPayment(Long userId, int amount, UUID storeId) {
+        Order order = persistOrder(userId, amount, storeId);
         return paymentService.createPayment(
                 new PaymentCreateRequest(order.getId(), (long) amount, PaymentMethod.CARD),
                 userId, "idem-" + order.getId());
@@ -155,38 +220,34 @@ class PaymentServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("멱등 - 같은 Idempotency-Key 재요청이면 새 결제 없이 최초 결과를 그대로 반환한다")
-        void idempotentReplay() {
-            Order order = persistOrder(CUSTOMER_ID, 27000);
-            String key = "idem-key-replay";
+        @DisplayName("실패 - 남의 주문을 결제하면 ACCESS_DENIED (소유자 검증)")
+        void notOrderOwner() {
+            Order order = persistOrder(CUSTOMER_ID, 27000); // 주문 소유자 = CUSTOMER_ID
+            PaymentCreateRequest req =
+                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD);
 
-            PaymentCreateResponse first = paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
-
-            // 같은 키로 재요청 (재시도 시나리오)
-            PaymentCreateResponse retry = paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD), CUSTOMER_ID, key);
-
-            // 동일한 결제가 반환되고, DB 에도 결제는 1건뿐
-            assertThat(retry.paymentId()).isEqualTo(first.paymentId());
-            assertThat(paymentRepository.count()).isEqualTo(1);
+            // 다른 유저가 이 주문을 결제하려 하면 거부
+            assertThatThrownBy(() -> paymentService.createPayment(req, OTHER_CUSTOMER_ID, null))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.ACCESS_DENIED);
         }
 
         @Test
-        @DisplayName("실패 - 이미 결제된 주문이면 PAYMENT_ALREADY_PROCESSED")
-        void alreadyProcessed() {
+        @DisplayName("실패 - PENDING 이 아닌 주문은 결제할 수 없다 (PAYMENT_ORDER_NOT_PAYABLE)")
+        void orderNotPayable() {
             Order order = persistOrder(CUSTOMER_ID, 27000);
-            paymentService.createPayment(
-                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD),
-                    CUSTOMER_ID, null);
-
-            PaymentCreateRequest again =
+            order.changeStatus(OrderStatus.CANCELED); // 결제 대기 상태가 아님
+            orderRepository.save(order);
+            PaymentCreateRequest req =
                     new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD);
 
-            assertThatThrownBy(() -> paymentService.createPayment(again, CUSTOMER_ID, null))
+            assertThatThrownBy(() -> paymentService.createPayment(req, CUSTOMER_ID, null))
                     .isInstanceOf(CustomException.class)
-                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_ALREADY_PROCESSED);
+                    .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_ORDER_NOT_PAYABLE);
         }
+
+        // 멱등 재요청 / 중복 결제(유니크 제약 위반 경로)는 커밋된 결제가 있어야 재현되므로
+        // 롤백 기반의 본 통합 테스트가 아니라 커밋 기반 {@code PaymentIdempotencyTest} 에서 검증한다.
     }
 
     // ── 2. 주문의 결제 내역 조회 ─────────────────────────────────────────────────
@@ -242,6 +303,37 @@ class PaymentServiceIntegrationTest {
                     .isInstanceOf(CustomException.class)
                     .extracting("errorCode").isEqualTo(ErrorCode.ACCESS_DENIED);
         }
+
+        @Test
+        @DisplayName("성공 - 본인 가게 OWNER 는 그 가게 주문의 결제를 조회한다 (가게 스코프)")
+        void ownStoreOwnerAllowed() {
+            Store store = persistOwnedStore();
+            Order order = persistOrder(CUSTOMER_ID, 27000, store.getId());
+            paymentService.createPayment(
+                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD),
+                    CUSTOMER_ID, null);
+
+            PaymentResponse res = paymentService.getPaymentByOrder(order.getId(), owner(store.getOwner().getId()));
+
+            assertThat(res.orderId()).isEqualTo(order.getId());
+            assertThat(res.status()).isEqualTo(PaymentStatus.PAID);
+        }
+
+        @Test
+        @DisplayName("실패 - 타 가게 OWNER 가 결제를 조회하면 ACCESS_DENIED (가게 스코프)")
+        void otherStoreOwnerDenied() {
+            Store myStore = persistOwnedStore();
+            Store otherStore = persistOwnedStore();
+            Order order = persistOrder(CUSTOMER_ID, 27000, myStore.getId());
+            paymentService.createPayment(
+                    new PaymentCreateRequest(order.getId(), 27000L, PaymentMethod.CARD),
+                    CUSTOMER_ID, null);
+
+            assertThatThrownBy(() ->
+                    paymentService.getPaymentByOrder(order.getId(), owner(otherStore.getOwner().getId())))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.ACCESS_DENIED);
+        }
     }
 
     // ── 3. 결제 취소 ───────────────────────────────────────────────────────────
@@ -250,16 +342,33 @@ class PaymentServiceIntegrationTest {
     class CancelPayment {
 
         @Test
-        @DisplayName("성공 - OWNER 가 PAID 결제를 취소하면 CANCELED 로 전이된다")
+        @DisplayName("성공 - 본인 가게 OWNER 가 PAID 결제를 취소하면 CANCELED 로 전이된다")
         void success() {
-            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+            Store store = persistOwnedStore();
+            Long ownerId = store.getOwner().getId();
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000, store.getId());
 
             PaymentCancelResponse res = paymentService.cancelPayment(
-                    created.paymentId(), new PaymentCancelRequest("사장님 미수락"), owner());
+                    created.paymentId(), new PaymentCancelRequest("사장님 미수락"), owner(ownerId));
 
             assertThat(res.status()).isEqualTo(PaymentStatus.CANCELED);
             assertThat(res.canceledReason()).isEqualTo("사장님 미수락");
             assertThat(res.canceledAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("실패 - 타 가게 OWNER 가 결제를 취소하면 ACCESS_DENIED (가게 스코프)")
+        void otherStoreOwnerDenied() {
+            Store myStore = persistOwnedStore();
+            Store otherStore = persistOwnedStore();
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000, myStore.getId());
+
+            // otherStore 의 사장(다른 가게 소유자)은 이 결제를 취소할 수 없다
+            assertThatThrownBy(() -> paymentService.cancelPayment(
+                    created.paymentId(), new PaymentCancelRequest("남의 가게 취소 시도"),
+                    owner(otherStore.getOwner().getId())))
+                    .isInstanceOf(CustomException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.ACCESS_DENIED);
         }
 
         @Test
@@ -276,11 +385,13 @@ class PaymentServiceIntegrationTest {
         @Test
         @DisplayName("실패 - 이미 취소된 결제는 다시 취소할 수 없다 (PAYMENT_NOT_CANCELABLE)")
         void notCancelable() {
-            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
-            paymentService.cancelPayment(created.paymentId(), new PaymentCancelRequest("1차 취소"), owner());
+            Store store = persistOwnedStore();
+            Long ownerId = store.getOwner().getId();
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000, store.getId());
+            paymentService.cancelPayment(created.paymentId(), new PaymentCancelRequest("1차 취소"), owner(ownerId));
 
             assertThatThrownBy(() -> paymentService.cancelPayment(
-                    created.paymentId(), new PaymentCancelRequest("2차 취소"), owner()))
+                    created.paymentId(), new PaymentCancelRequest("2차 취소"), owner(ownerId)))
                     .isInstanceOf(CustomException.class)
                     .extracting("errorCode").isEqualTo(ErrorCode.PAYMENT_NOT_CANCELABLE);
         }
@@ -436,11 +547,13 @@ class PaymentServiceIntegrationTest {
         @Test
         @DisplayName("취소가 dirty checking 으로 DB 에 반영된다 (save 호출 없음)")
         void cancelIsPersisted() {
-            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000);
+            Store store = persistOwnedStore();
+            Long ownerId = store.getOwner().getId();
+            PaymentCreateResponse created = createPaidPayment(CUSTOMER_ID, 27000, store.getId());
             em.flush();
             em.clear();
 
-            paymentService.cancelPayment(created.paymentId(), new PaymentCancelRequest("사장님 미수락"), owner());
+            paymentService.cancelPayment(created.paymentId(), new PaymentCancelRequest("사장님 미수락"), owner(ownerId));
 
             em.flush();
             em.clear();
