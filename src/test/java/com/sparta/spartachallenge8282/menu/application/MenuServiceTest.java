@@ -6,6 +6,8 @@ import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
+import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuCreateResponse;
+import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuDeleteResponse;
 import com.sparta.spartachallenge8282.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
@@ -107,10 +109,10 @@ class MenuServiceTest {
         given(menuRepository.save(any(Menu.class))).willReturn(saved);
 
         // when
-        UUID result = menuService.createMenu(storeId, request);
+        MenuCreateResponse result = menuService.createMenu(storeId, request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.menuId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -354,12 +356,13 @@ class MenuServiceTest {
         given(optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)).willReturn(List.of());
 
         // when
-        LocalDateTime deletedAt = menuService.deleteMenu(id, userId);
+        MenuDeleteResponse result = menuService.deleteMenu(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(menu.isDeleted()).isTrue();
-        assertThat(menu.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(menu.getDeletedAt()).isEqualTo(result.deletedAt());
+        assertThat(result.menuId()).isEqualTo(id);
         assertThat(menu.getDeletedBy()).isEqualTo(userId);
     }
 

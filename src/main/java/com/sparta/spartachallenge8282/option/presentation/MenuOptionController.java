@@ -28,14 +28,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
  * 옵션 REST 컨트롤러.
  *
- * <p>생성/목록은 그룹 하위({@code /option-groups/{optionGroupId}/options}), 단건/수정/삭제는 {@code /options/{optionId}}.
- * 쓰기는 OWNER/MANAGER/MASTER(소유권 검증은 auth 브랜치), 조회는 비로그인 공개.
+ * <p>옵션 생성/목록은 옵션 그룹 하위 경로를 사용하고,
+ * 단건 조회/수정/삭제는 옵션 ID 기준 경로를 사용한다.
+ *
+ * <p>쓰기 요청은 OWNER/MANAGER/MASTER 권한이 필요하며,
+ * 조회는 비로그인 공개다.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -49,9 +51,8 @@ public class MenuOptionController {
     public ResponseEntity<ApiResponse<MenuOptionCreateResponse>> createOption(
             @PathVariable UUID optionGroupId,
             @Valid @RequestBody MenuOptionCreateRequest request) {
-        UUID id = optionService.createOption(optionGroupId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("옵션 생성 완료", new MenuOptionCreateResponse(id)));
+                .body(ApiResponse.success("옵션 생성 완료", optionService.createOption(optionGroupId, request)));
     }
 
     @GetMapping("/option-groups/{optionGroupId}/options")
@@ -86,8 +87,7 @@ public class MenuOptionController {
     public ResponseEntity<ApiResponse<MenuOptionDeleteResponse>> deleteOption(
             @PathVariable UUID optionId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        LocalDateTime deletedAt = optionService.deleteOption(optionId, userDetails.userId());
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 삭제 완료", new MenuOptionDeleteResponse(optionId, deletedAt)));
+                ApiResponse.success("옵션 삭제 완료", optionService.deleteOption(optionId, userDetails.userId())));
     }
 }
