@@ -4,6 +4,8 @@ import com.sparta.spartachallenge8282.category.domain.Category;
 import com.sparta.spartachallenge8282.category.domain.CategoryRepository;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryCreateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryUpdateRequest;
+import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryCreateResponse;
+import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryDeleteResponse;
 import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
@@ -62,10 +64,10 @@ class CategoryServiceTest {
         given(categoryRepository.save(any(Category.class))).willReturn(saved);
 
         // when
-        UUID result = categoryService.createCategory(request);
+        CategoryCreateResponse result = categoryService.createCategory(request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.categoryId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -239,12 +241,13 @@ class CategoryServiceTest {
         given(storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)).willReturn(false);
 
         // when
-        LocalDateTime deletedAt = categoryService.deleteCategory(id, userId);
+        CategoryDeleteResponse result = categoryService.deleteCategory(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(category.isDeleted()).isTrue();
-        assertThat(category.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(category.getDeletedAt()).isEqualTo(result.deletedAt());
+        assertThat(result.categoryId()).isEqualTo(id);
         assertThat(category.getDeletedBy()).isEqualTo(userId);
     }
 

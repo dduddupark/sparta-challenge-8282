@@ -20,9 +20,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * 지역 REST 컨트롤러.
+ *
+ * <p>지역은 특정 가게에 종속되지 않는 플랫폼 공통 마스터 데이터다.
+ * 쓰기 요청은 MANAGER/MASTER 권한이 필요하며, 조회는 비로그인 공개다.
+ */
 @RestController
 @RequestMapping("/api/v1/regions")
 @RequiredArgsConstructor
@@ -34,9 +39,8 @@ public class RegionController {
     @PostMapping
     public ResponseEntity<ApiResponse<RegionCreateResponse>> createRegion(
             @Valid @RequestBody RegionCreateRequest request) {
-        UUID regionId = regionService.createRegion(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("지역 생성 완료", new RegionCreateResponse(regionId)));
+                .body(ApiResponse.success("지역 생성 완료", regionService.createRegion(request)));
     }
 
     // 조회(GET)는 비로그인 공개 — 활성 항목만 노출(SecurityConfig 화이트리스트).
@@ -69,8 +73,7 @@ public class RegionController {
     public ResponseEntity<ApiResponse<RegionDeleteResponse>> deleteRegion(
             @PathVariable UUID regionId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        LocalDateTime deletedAt = regionService.deleteRegion(regionId, userDetails.userId());
         return ResponseEntity.ok(
-                ApiResponse.success("지역 삭제 완료", new RegionDeleteResponse(regionId, deletedAt)));
+                ApiResponse.success("지역 삭제 완료", regionService.deleteRegion(regionId, userDetails.userId())));
     }
 }

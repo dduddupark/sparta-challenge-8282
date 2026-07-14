@@ -6,6 +6,8 @@ import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionCreateRequest;
 import com.sparta.spartachallenge8282.region.presentation.dto.request.RegionUpdateRequest;
+import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionCreateResponse;
+import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionDeleteResponse;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import org.junit.jupiter.api.Test;
@@ -57,10 +59,10 @@ class RegionServiceTest {
         given(regionRepository.save(any(Region.class))).willReturn(saved);
 
         // when
-        UUID result = regionService.createRegion(request);
+        RegionCreateResponse result = regionService.createRegion(request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.regionId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -231,12 +233,13 @@ class RegionServiceTest {
         given(storeRepository.existsByRegion_IdAndDeletedAtIsNull(id)).willReturn(false);
 
         // when
-        LocalDateTime deletedAt = regionService.deleteRegion(id, userId);
+        RegionDeleteResponse result = regionService.deleteRegion(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(region.isDeleted()).isTrue();
-        assertThat(region.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(region.getDeletedAt()).isEqualTo(result.deletedAt());
+        assertThat(result.regionId()).isEqualTo(id);
         assertThat(region.getDeletedBy()).isEqualTo(userId);
     }
 

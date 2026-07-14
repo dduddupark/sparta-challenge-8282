@@ -3,6 +3,8 @@ package com.sparta.spartachallenge8282.review.domain;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -20,4 +22,14 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     Slice<Review> findByStoreIdAndDeletedAtIsNull(UUID storeId, Pageable pageable);
 
     boolean existsByOrderId(UUID orderId);
+
+
+    @Query("""
+            SELECT COALESCE(AVG(r.rating), 0)
+            FROM Review r
+            WHERE r.storeId = :storeId
+              AND r.deletedAt is NULL""")
+    Double calculateAverageRating(@Param("storeId") UUID storeId);
+
+    long countByStoreIdAndDeletedAtIsNull(UUID storeId);
 }

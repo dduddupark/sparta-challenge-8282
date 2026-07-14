@@ -20,9 +20,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * 카테고리 REST 컨트롤러.
+ *
+ * <p>카테고리는 특정 가게에 종속되지 않는 플랫폼 공통 마스터 데이터다.
+ * 쓰기 요청은 MANAGER/MASTER 권한이 필요하며, 조회는 비로그인 공개다.
+ */
 @RestController
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
@@ -34,9 +39,8 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryCreateResponse>> createCategory(
             @Valid @RequestBody CategoryCreateRequest request) {
-        UUID categoryId = categoryService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("카테고리 생성 완료", new CategoryCreateResponse(categoryId)));
+                .body(ApiResponse.success("카테고리 생성 완료", categoryService.createCategory(request)));
     }
 
     @GetMapping("/{categoryId}")
@@ -68,8 +72,7 @@ public class CategoryController {
     public ResponseEntity<ApiResponse<CategoryDeleteResponse>> deleteCategory(
             @PathVariable UUID categoryId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        LocalDateTime deletedAt = categoryService.deleteCategory(categoryId, userDetails.userId());
         return ResponseEntity.ok(
-                ApiResponse.success("카테고리 삭제 완료", new CategoryDeleteResponse(categoryId, deletedAt)));
+                ApiResponse.success("카테고리 삭제 완료", categoryService.deleteCategory(categoryId, userDetails.userId())));
     }
 }
