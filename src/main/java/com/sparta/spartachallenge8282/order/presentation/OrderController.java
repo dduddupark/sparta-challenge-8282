@@ -131,4 +131,29 @@ public class OrderController {
                 ApiResponse.success("주문 상태 변경 성공", response)
         );
     }
+
+    /**
+     * 주문 상태 변경 이력 조회
+     */
+    @GetMapping("/{orderId}/status-history")
+    public ResponseEntity<
+            ApiResponse<List<OrderStatusHistoryResponseDto>>
+            > getOrderStatusHistory(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PathVariable UUID orderId
+    ) {
+        List<OrderStatusHistoryResponseDto> response =
+                orderService.getOrderStatusHistory(
+                        userDetails.userId(),
+                        userDetails.role(),
+                        orderId
+                );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "주문 상태 변경 이력 조회 성공",
+                        response
+                )
+        );
+    }
 }

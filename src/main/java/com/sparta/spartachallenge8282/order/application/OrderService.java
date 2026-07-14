@@ -640,6 +640,77 @@ public class OrderService {
         paymentService.validateOrderAcceptable(orderId);
     }
 
+    /**
+     * 주문 상태 변경 이력 조회
+     * 주문이 존재하는지 확인하고,
+     * 로그인 사용자가 해당 주문 이력을 조회할 권한이 있는지 검증한 뒤
+     * 변경 시각 오름차순으로 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<OrderStatusHistoryResponseDto> getOrderStatusHistory(
+            Long userId,
+            String authority,
+            UUID orderId
+    ) {
+        // 1. 삭제되지 않은 주문 조회
+        Order order = orderRepository.findByIdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.ORDER_NOT_FOUND)
+                );
+
+        // 2. 역할에 따른 주문 접근 권한 검증
+        validateOrderHistoryAccess(
+                order,
+                userId,
+                authority
+        );
+
+        // 3. 주문 상태 변경 이력 조회 후 DTO 변환
+        return orderStatusHistoryRepository
+                .findAllByOrder_IdOrderByChangedAtAsc(orderId)
+                .stream()
+                .map(OrderStatusHistoryResponseDto::from)
+                .toList();
+    }
+    /**
+     * 주문 상태 변경 이력 조회 권한 검증
+     * CUSTOMER:
+     * - 본인 주문만 조회 가능
+     * OWNER:
+     * - 본인 가게 주문만 조회 가능
+     * MANAGER / MASTER:
+     * - 모든 주문 조회 가능
+     */
+    private void validateOrderHistoryAccess(
+            Order order,
+            Long userId,
+            String authority
+    ) {
+        UserRole userRole = parseUserRole(authority);
+
+        // 관리자 권한은 전체 주문 이력 조회 가능
+        if (userRole == UserRole.MANAGER
+                || userRole == UserRole.MASTER) {
+            return;
+        }
+
+        // CUSTOMER는 본인 주문만 조회 가능
+        if (userRole == UserRole.CUSTOMER) {
+            validateOrderOwner(order, userId);
+            return;
+        }
+
+        // OWNER는 본인 가게 주문만 조회 가능
+        if (userRole == UserRole.OWNER) {
+            validateStoreOwner(
+                    order.getStoreId(),
+                    userId
+            );
+            return;
+        }
+
+        throw new CustomException(ErrorCode.ACCESS_DENIED);
+    }
 
 
 
