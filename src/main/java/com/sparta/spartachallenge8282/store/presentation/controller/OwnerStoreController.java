@@ -3,8 +3,10 @@ package com.sparta.spartachallenge8282.store.presentation.controller;
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.application.StoreService;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreOpenStatusRequest;
+import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreUpdateRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreListResponse;
 import jakarta.validation.Valid;
@@ -23,7 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('ROLE_OWNER')")
 public class OwnerStoreController {
-    private final StoreService storeService;
+    private final OwnerStoreService ownerStoreService;
 
 
     /**
@@ -34,7 +36,7 @@ public class OwnerStoreController {
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PageableDefault(size = 20)Pageable pageable
     ){
-        PageResponse<OwnerStoreListResponse> response = storeService.getMyStores(userDetails, pageable);
+        PageResponse<OwnerStoreListResponse> response = ownerStoreService.getMyStores(userDetails, pageable);
         return ResponseEntity.ok(ApiResponse.success("내 가게 목록 조회 성공", response)
         );
     }
@@ -48,7 +50,7 @@ public class OwnerStoreController {
             @PathVariable UUID storeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        OwnerStoreDetailResponse response = storeService.getMyStore(storeId, userDetails);
+        OwnerStoreDetailResponse response = ownerStoreService.getMyStore(storeId, userDetails);
 
         return ResponseEntity.ok(ApiResponse.success("내 가게 상세 조회 성공", response)
         );
@@ -62,7 +64,7 @@ public class OwnerStoreController {
             @PathVariable UUID storeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ){
-        storeService.activateStore(storeId, userDetails);
+        ownerStoreService.activateStore(storeId, userDetails);
         return ResponseEntity.ok(ApiResponse.success("가게 활성화 성공"));
     }
 
@@ -76,8 +78,35 @@ public class OwnerStoreController {
             @Valid @RequestBody StoreOpenStatusRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ){
-        storeService.changeOpenStatus(storeId, request, userDetails);
+        ownerStoreService.changeOpenStatus(storeId, request, userDetails);
         return ResponseEntity.ok(ApiResponse.success(request.isOpen() ? "가게 영업 시작 성공" : "가게 영업 종료 성공"));
+    }
+
+
+    /**
+     * 가게 정보 수정
+     */
+    @PatchMapping("/{storeId}")
+    public ResponseEntity<ApiResponse<OwnerStoreDetailResponse>> updateStore(
+            @PathVariable UUID storeId,
+            @Valid @RequestBody StoreUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ){
+        OwnerStoreDetailResponse response = ownerStoreService.updateStore(storeId, request, userDetails);
+        return ResponseEntity.ok(ApiResponse.success("가게 정보 수정 성공", response));
+    }
+
+
+    /**
+     * 가게 삭제 요청
+     */
+    @PatchMapping("/{storeId}/close-request")
+    public ResponseEntity<ApiResponse<?>> requestDeleteStore(
+            @PathVariable UUID storeId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ){
+        ownerStoreService.requestDeleteStore(storeId, userDetails);
+        return ResponseEntity.ok(ApiResponse.success("가게 삭제 요청 성공"));
     }
 
 

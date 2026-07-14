@@ -1,0 +1,30 @@
+package com.sparta.spartachallenge8282.user.presentation.dto.response;
+
+import com.sparta.spartachallenge8282.user.domain.User;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
+
+import java.time.LocalDateTime;
+
+public record UserResponse(
+        Long id,
+        String email,
+        String nickname,
+        String address,
+        UserRole role,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        boolean isDeleted
+) {
+    public static UserResponse from(User user) {
+        return new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getAddress(),
+                user.getRole(),
+                user.getCreatedAt(),
+                user.getUpdatedAt(),
+                user.isDeleted()
+        );
+    }
+}
