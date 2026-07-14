@@ -72,7 +72,8 @@ public class UserService {
             throw new CustomException(ErrorCode.INVALID_PASSWORD);
         }
 
-        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
+        String accessToken = jwtProvider.createAccessToken(
+                user.getId(), user.getEmail(), user.getRole().getAuthority(), user.getTokenVersion());
         String refreshToken = jwtProvider.createRefreshToken(user.getEmail());
 
         user.updateRefreshToken(refreshToken); // DB에 Refresh Token 캐싱
@@ -83,14 +84,14 @@ public class UserService {
 
     /**
      * 로그아웃.
-     * 사용자 DB 내 보관 중인 Refresh Token을 제거한다.
+     * Refresh Token을 제거하고 기존 Access Token을 모두 무효화한다.
      */
     @Transactional
     public void logout(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        user.clearRefreshToken();
+        user.invalidateTokens();
         log.info("[Logout] 로그아웃 완료. userId={}", userId);
     }
 
@@ -119,7 +120,8 @@ public class UserService {
         }
 
         // 새로운 Access Token 생성 및 Refresh Token Rotation(RTR) 적용
-        String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), user.getRole().getAuthority());
+        String newAccessToken = jwtProvider.createAccessToken(
+                user.getId(), user.getEmail(), user.getRole().getAuthority(), user.getTokenVersion());
         String newRefreshToken = jwtProvider.createRefreshToken(user.getEmail());
 
         user.updateRefreshToken(newRefreshToken);
@@ -173,6 +175,7 @@ public class UserService {
         }
 
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
+        user.invalidateTokens();
         log.info("[Password Change] 비밀번호 변경 완료. userId={}", userId);
     }
 
@@ -180,7 +183,6 @@ public class UserService {
      * 회원 탈퇴 (Soft Delete).
      * 로그아웃과 탈퇴 처리를 동시에 진행하여 세션을 즉각 무효화한다.
      */
-    //TODO : accesstoken이 디비에 없어서?
     @Transactional
     public void withdraw(Long userId) {
         User user = userRepository.findByIdAndDeletedAtIsNull(userId)
@@ -191,7 +193,7 @@ public class UserService {
         }
 
         user.softDelete(userId);
-        user.clearRefreshToken();
+        user.invalidateTokens();
         log.info("[User Withdraw] 회원 탈퇴 처리 완료. userId={}", userId);
     }
 
@@ -236,7 +238,7 @@ public class UserService {
         }
 
         user.softDelete(adminUserId); // 삭제를 지시한 관리자 ID 기록
-        user.clearRefreshToken();
+        user.invalidateTokens();
         log.info("[Admin Force Delete] 회원 강제 삭제 처리. targetUserId={}, adminUserId={}", targetUserId, adminUserId);
     }
 

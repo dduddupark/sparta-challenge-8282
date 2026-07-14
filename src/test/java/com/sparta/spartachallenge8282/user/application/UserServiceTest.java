@@ -187,7 +187,7 @@ class UserServiceTest {
                     .willReturn(java.util.Optional.of(user));
             given(passwordEncoder.matches(request.password(), user.getPassword()))
                     .willReturn(true);
-            given(jwtProvider.createAccessToken(user.getId(), user.getEmail(), "ROLE_CUSTOMER"))
+            given(jwtProvider.createAccessToken(user.getId(), user.getEmail(), "ROLE_CUSTOMER", 0L))
                     .willReturn("accessToken");
             given(jwtProvider.createRefreshToken(user.getEmail()))
                     .willReturn("refreshToken");
@@ -240,7 +240,7 @@ class UserServiceTest {
     class LogoutTest {
 
         @Test
-        @DisplayName("정상 로그아웃 - RefreshToken 삭제")
+        @DisplayName("정상 로그아웃 - RefreshToken 삭제 및 기존 AccessToken 무효화")
         void logout_success() {
             // given
             User user = User.builder()
@@ -257,6 +257,7 @@ class UserServiceTest {
 
             // then
             assertThat(user.getRefreshToken()).isNull();
+            assertThat(user.getTokenVersion()).isEqualTo(1L);
         }
     }
 
@@ -279,7 +280,7 @@ class UserServiceTest {
             given(jwtProvider.validateRefreshToken(oldRefreshToken)).willReturn("test@sparta.com");
             given(userRepository.findByEmailAndDeletedAtIsNullForUpdate("test@sparta.com"))
                     .willReturn(java.util.Optional.of(user));
-            given(jwtProvider.createAccessToken(1L, "test@sparta.com", "ROLE_CUSTOMER"))
+            given(jwtProvider.createAccessToken(1L, "test@sparta.com", "ROLE_CUSTOMER", 0L))
                     .willReturn("newAccessToken");
             given(jwtProvider.createRefreshToken("test@sparta.com"))
                     .willReturn("newRefreshToken");
@@ -451,7 +452,7 @@ class UserServiceTest {
     class ChangePasswordTest {
 
         @Test
-        @DisplayName("정상 비밀번호 변경 성공")
+        @DisplayName("정상 비밀번호 변경 성공 - 기존 토큰 무효화")
         void changePassword_success() {
             // given
             User user = User.builder()
@@ -474,6 +475,7 @@ class UserServiceTest {
             // then
             verify(passwordEncoder).encode("NewPassword123!");
             assertThat(user.getPassword()).isEqualTo("encodedNewPassword");
+            assertThat(user.getTokenVersion()).isEqualTo(1L);
         }
 
         @Test
@@ -552,6 +554,7 @@ class UserServiceTest {
             assertThat(user.getDeletedAt()).isNotNull();
             assertThat(user.getDeletedBy()).isEqualTo(1L);
             assertThat(user.getRefreshToken()).isNull(); // RefreshToken 삭제 확인
+            assertThat(user.getTokenVersion()).isEqualTo(1L);
         }
 
         @Test
