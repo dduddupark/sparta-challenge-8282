@@ -58,8 +58,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     Page<User> findAllByDeletedAtIsNotNull(Pageable pageable);
 
-    /**
-     * 특정 역할을 가진 탈퇴하지 않은 회원이 존재하는지 확인
-     */
-    boolean existsByRoleAndDeletedAtIsNull(com.sparta.spartachallenge8282.user.entity.UserRole role);
 }
