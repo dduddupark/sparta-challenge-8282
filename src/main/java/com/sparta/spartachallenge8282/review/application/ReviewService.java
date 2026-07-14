@@ -172,5 +172,6 @@ public class ReviewService {
 
         store.updateReviewSummary(rating, Math.toIntExact(reviewCount));
 
+
     }
 }
