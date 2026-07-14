@@ -57,7 +57,7 @@ public class OrderService {
         // 리스트를 이용하여 여러 메뉴 조회
         List<OrderItem> orderItems = createOrderItems(request);
 
-        // 금액 계산
+        // 금액 계산.
         int menuTotalPrice =
                 calculateMenuTotalPrice(orderItems);
 
