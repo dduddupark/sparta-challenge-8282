@@ -1,6 +1,7 @@
 package com.sparta.spartachallenge8282.review_reply.domain;
 
 import com.sparta.spartachallenge8282.global.config.JpaAuditingConfig; // 실제 패키지 경로로 확인 필요
+import com.sparta.spartachallenge8282.global.config.QueryDslConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
+@Import({
+        JpaAuditingConfig.class,
+        QueryDslConfig.class
+})
 class ReviewReplyRepositoryTest {
 
     @Autowired
