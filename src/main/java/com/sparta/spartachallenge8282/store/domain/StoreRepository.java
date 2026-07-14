@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface StoreRepository extends JpaRepository<Store, UUID> {
+public interface StoreRepository extends JpaRepository<Store, UUID>, StoreRepositoryCustom {
 
 
     /**
@@ -47,22 +47,6 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
             Long ownerId
     );
 
-
-    /**
-     * ACTIVE 상태가 된 가게만 일반 유저에게 노출한다.
-     */
-    //전체 조회
-    Page<Store> findAllByDeletedAtIsNull(Pageable pageable);
-
-    //상태에 따른 조회
-    @EntityGraph(attributePaths = {
-            "category",
-            "region"
-    })
-    Page<Store> findAllByOperationStatusAndDeletedAtIsNull(
-            StoreOperationStatus operationStatus,
-            Pageable pageable
-    );
 
     /**
      * ACTIVE 상태가 된 가게만 일반 유저에게 노출한다.

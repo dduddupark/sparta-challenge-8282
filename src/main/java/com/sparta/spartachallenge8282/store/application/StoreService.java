@@ -4,6 +4,7 @@ import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.store.domain.*;
+import com.sparta.spartachallenge8282.store.presentation.dto.request.StoresSearchCondition;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,8 +26,8 @@ public class StoreService {
      * 가게 목록 조회
      * 활성화된 가게만 노출시킨다.
      */
-    public PageResponse<UserStoreListResponse> getStores(Pageable pageable) {
-        Page<Store> stores = storeRepository.findAllByOperationStatusAndDeletedAtIsNull(StoreOperationStatus.ACTIVE, pageable);
+    public PageResponse<UserStoreListResponse> getStores(StoresSearchCondition condition, Pageable pageable) {
+        Page<Store> stores = storeRepository.searchStores(condition, pageable);
         return PageResponse.from(stores.map(UserStoreListResponse::from));
     }
 
