@@ -91,11 +91,13 @@ class OwnerStoreServiceTest {
     class GetMyStoresTest {
 
         @Test
-        @DisplayName("본인의 가게 목록을 페이징 조회한다")
+        @DisplayName("상태값이 없으면 본인의 전체 가게 목록을 페이징 조회한다")
         void getMyStores_success() {
             // given
             PageRequest pageable = PageRequest.of(0, 20);
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             Page<Store> stores = new PageImpl<>(
                     List.of(store),
@@ -104,7 +106,7 @@ class OwnerStoreServiceTest {
             );
 
             when(
-                    storeRepository.findAllByOwnerIdAndDeletedAtIsNull(
+                    storeRepository.findAllByOwner_IdAndDeletedAtIsNull(
                             ownerId,
                             pageable
                     )
@@ -114,16 +116,76 @@ class OwnerStoreServiceTest {
             PageResponse<OwnerStoreListResponse> response =
                     ownerStoreService.getMyStores(
                             ownerDetails,
-                            pageable
+                            pageable,
+                            null
                     );
 
             // then
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findAllByOwnerIdAndDeletedAtIsNull(
+                    .findAllByOwner_IdAndDeletedAtIsNull(
                             ownerId,
                             pageable
+                    );
+
+            verify(storeRepository, never())
+                    .findAllByOwner_IdAndOperationStatusAndDeletedAtIsNull(
+                            any(),
+                            any(),
+                            any()
+                    );
+        }
+
+        @Test
+        @DisplayName("상태값을 지정하면 해당 상태의 본인 가게만 페이징 조회한다")
+        void getMyStores_withStatus() {
+            // given
+            PageRequest pageable = PageRequest.of(0, 20);
+
+            StoreOperationStatus operationStatus =
+                    StoreOperationStatus.ACTIVE;
+
+            Store store =
+                    mockStore(operationStatus);
+
+            Page<Store> stores = new PageImpl<>(
+                    List.of(store),
+                    pageable,
+                    1
+            );
+
+            when(
+                    storeRepository
+                            .findAllByOwner_IdAndOperationStatusAndDeletedAtIsNull(
+                                    ownerId,
+                                    operationStatus,
+                                    pageable
+                            )
+            ).thenReturn(stores);
+
+            // when
+            PageResponse<OwnerStoreListResponse> response =
+                    ownerStoreService.getMyStores(
+                            ownerDetails,
+                            pageable,
+                            operationStatus
+                    );
+
+            // then
+            assertThat(response).isNotNull();
+
+            verify(storeRepository)
+                    .findAllByOwner_IdAndOperationStatusAndDeletedAtIsNull(
+                            ownerId,
+                            operationStatus,
+                            pageable
+                    );
+
+            verify(storeRepository, never())
+                    .findAllByOwner_IdAndDeletedAtIsNull(
+                            any(),
+                            any()
                     );
         }
 
@@ -135,7 +197,7 @@ class OwnerStoreServiceTest {
             Page<Store> stores = Page.empty(pageable);
 
             when(
-                    storeRepository.findAllByOwnerIdAndDeletedAtIsNull(
+                    storeRepository.findAllByOwner_IdAndDeletedAtIsNull(
                             ownerId,
                             pageable
                     )
@@ -145,14 +207,15 @@ class OwnerStoreServiceTest {
             PageResponse<OwnerStoreListResponse> response =
                     ownerStoreService.getMyStores(
                             ownerDetails,
-                            pageable
+                            pageable,
+                            null
                     );
 
             // then
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findAllByOwnerIdAndDeletedAtIsNull(
+                    .findAllByOwner_IdAndDeletedAtIsNull(
                             ownerId,
                             pageable
                     );
@@ -167,7 +230,8 @@ class OwnerStoreServiceTest {
         @DisplayName("본인의 가게 상세 정보를 조회한다")
         void getMyStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -225,10 +289,11 @@ class OwnerStoreServiceTest {
     class ActivateStoreTest {
 
         @Test
-        @DisplayName("PREPARING 상태이고 메뉴가 존재하면 활성화에 성공한다")
+        @DisplayName("PREPARING 상태이고 공개 메뉴가 존재하면 활성화에 성공한다")
         void activateStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.PREPARING);
+            Store store =
+                    mockStore(StoreOperationStatus.PREPARING);
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -238,9 +303,10 @@ class OwnerStoreServiceTest {
             ).thenReturn(Optional.of(store));
 
             when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
-                            storeId
-                    )
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(true);
 
             // when
@@ -250,10 +316,13 @@ class OwnerStoreServiceTest {
             );
 
             // then
-            verify(store).activate();
-
             verify(menuRepository)
-                    .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId);
+                    .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                            storeId
+                    );
+
+            verify(store)
+                    .activate();
         }
 
         @Test
@@ -282,7 +351,8 @@ class OwnerStoreServiceTest {
         @DisplayName("PREPARING 상태가 아니면 활성화할 수 없다")
         void activateStore_notPreparing() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -299,15 +369,18 @@ class OwnerStoreServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
-            verify(store, never()).activate();
+            verify(store, never())
+                    .activate();
+
             verifyNoInteractions(menuRepository);
         }
 
         @Test
-        @DisplayName("등록된 메뉴가 없으면 활성화할 수 없다")
+        @DisplayName("공개된 메뉴가 없으면 활성화할 수 없다")
         void activateStore_menuNotFound() {
             // given
-            Store store = mockStore(StoreOperationStatus.PREPARING);
+            Store store =
+                    mockStore(StoreOperationStatus.PREPARING);
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -317,9 +390,10 @@ class OwnerStoreServiceTest {
             ).thenReturn(Optional.of(store));
 
             when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
-                            storeId
-                    )
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(false);
 
             // when & then
@@ -330,105 +404,121 @@ class OwnerStoreServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
-            verify(store, never()).activate();
+            verify(store, never())
+                    .activate();
         }
     }
 
     @Nested
-    @DisplayName("메뉴 존재 여부에 따른 운영상태 갱신")
+    @DisplayName("메뉴 존재 여부에 따른 운영 상태 갱신")
     class RefreshOperationStatusByMenusTest {
 
         @Test
-        @DisplayName("ACTIVE 상태이고 공개 메뉴가 하나도 없으면 PREPARING으로 전환한다")
-        void refreshOperationStatusByMenus_activeWithNoPublicMenu_movesToPreparing() {
+        @DisplayName("ACTIVE 상태이고 공개 메뉴가 없으면 PREPARING으로 전환한다")
+        void refreshOperationStatusByMenus_activeWithNoPublicMenu() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.of(store));
 
             when(
-                    storeRepository.findByIdAndDeletedAtIsNull(storeId)
-            ).thenReturn(Optional.of(store));
-
-            when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId)
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(false);
 
             // when
             ownerStoreService.refreshOperationStatusByMenus(storeId);
 
             // then
-            verify(store).preparing();
+            verify(store)
+                    .preparing();
         }
 
         @Test
-        @DisplayName("ACTIVE 상태이고 공개 메뉴가 남아있으면 상태를 유지한다")
-        void refreshOperationStatusByMenus_activeWithPublicMenu_staysActive() {
+        @DisplayName("ACTIVE 상태이고 공개 메뉴가 남아 있으면 상태를 유지한다")
+        void refreshOperationStatusByMenus_activeWithPublicMenu() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.of(store));
 
             when(
-                    storeRepository.findByIdAndDeletedAtIsNull(storeId)
-            ).thenReturn(Optional.of(store));
-
-            when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId)
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(true);
 
             // when
             ownerStoreService.refreshOperationStatusByMenus(storeId);
 
             // then
-            verify(store, never()).preparing();
+            verify(store, never())
+                    .preparing();
         }
 
         @Test
         @DisplayName("ACTIVE 상태가 아니면 공개 메뉴가 없어도 상태를 변경하지 않는다")
-        void refreshOperationStatusByMenus_notActive_doesNothing() {
+        void refreshOperationStatusByMenus_notActive() {
             // given
-            Store store = mockStore(StoreOperationStatus.PREPARING);
+            Store store =
+                    mockStore(StoreOperationStatus.PREPARING);
+
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.of(store));
 
             when(
-                    storeRepository.findByIdAndDeletedAtIsNull(storeId)
-            ).thenReturn(Optional.of(store));
-
-            when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId)
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(false);
 
             // when
             ownerStoreService.refreshOperationStatusByMenus(storeId);
 
             // then
-            verify(store, never()).preparing();
+            verify(store, never())
+                    .preparing();
         }
 
         @Test
         @DisplayName("CLOSE_REQUESTED 상태이면 공개 메뉴가 없어도 상태를 변경하지 않는다")
-        void refreshOperationStatusByMenus_closeRequested_doesNothing() {
+        void refreshOperationStatusByMenus_closeRequested() {
             // given
-            Store store = mockStore(StoreOperationStatus.CLOSE_REQUESTED);
+            Store store =
+                    mockStore(StoreOperationStatus.CLOSE_REQUESTED);
+
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.of(store));
 
             when(
-                    storeRepository.findByIdAndDeletedAtIsNull(storeId)
-            ).thenReturn(Optional.of(store));
-
-            when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId)
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
             ).thenReturn(false);
 
             // when
             ownerStoreService.refreshOperationStatusByMenus(storeId);
 
             // then
-            verify(store, never()).preparing();
+            verify(store, never())
+                    .preparing();
         }
 
         @Test
         @DisplayName("존재하지 않는 가게이면 예외가 발생한다")
         void refreshOperationStatusByMenus_storeNotFound() {
             // given
-            when(
-                    storeRepository.findByIdAndDeletedAtIsNull(storeId)
-            ).thenReturn(Optional.empty());
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() ->
@@ -447,7 +537,9 @@ class OwnerStoreServiceTest {
         @DisplayName("ACTIVE 상태인 가게는 영업을 시작할 수 있다")
         void openStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
             StoreOpenStatusRequest request =
                     new StoreOpenStatusRequest(true);
 
@@ -466,14 +558,17 @@ class OwnerStoreServiceTest {
             );
 
             // then
-            verify(store).changeOpenStatus(true);
+            verify(store)
+                    .changeOpenStatus(true);
         }
 
         @Test
         @DisplayName("ACTIVE 상태인 가게는 영업을 종료할 수 있다")
         void closeStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
             StoreOpenStatusRequest request =
                     new StoreOpenStatusRequest(false);
 
@@ -492,7 +587,8 @@ class OwnerStoreServiceTest {
             );
 
             // then
-            verify(store).changeOpenStatus(false);
+            verify(store)
+                    .changeOpenStatus(false);
         }
 
         @Test
@@ -523,7 +619,9 @@ class OwnerStoreServiceTest {
         @DisplayName("PREPARING 상태에서는 영업 상태를 변경할 수 없다")
         void changeOpenStatus_preparing() {
             // given
-            Store store = mockStore(StoreOperationStatus.PREPARING);
+            Store store =
+                    mockStore(StoreOperationStatus.PREPARING);
+
             StoreOpenStatusRequest request =
                     new StoreOpenStatusRequest(true);
 
@@ -586,10 +684,17 @@ class OwnerStoreServiceTest {
         @DisplayName("가게 정보 수정에 성공한다")
         void updateStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
-            Category newCategory = mock(Category.class);
-            Region newRegion = mock(Region.class);
-            StoreUpdateRequest request = createUpdateRequest();
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            Category newCategory =
+                    mock(Category.class);
+
+            Region newRegion =
+                    mock(Region.class);
+
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -615,42 +720,46 @@ class OwnerStoreServiceTest {
             // then
             assertThat(response).isNotNull();
 
-            verify(store).update(
-                    newCategory,
-                    newRegion,
-                    request.storeName(),
-                    request.storeTel(),
-                    request.storeImage(),
-                    request.address(),
-                    request.minOrderPrice(),
-                    request.deliveryFee(),
-                    request.freeDeliveryAmount(),
-                    request.openTime(),
-                    request.closeTime()
-            );
+            verify(store)
+                    .update(
+                            newCategory,
+                            newRegion,
+                            request.storeName(),
+                            request.storeTel(),
+                            request.storeImage(),
+                            request.address(),
+                            request.minOrderPrice(),
+                            request.deliveryFee(),
+                            request.freeDeliveryAmount(),
+                            request.openTime(),
+                            request.closeTime()
+                    );
         }
 
         @Test
-        @DisplayName("카테고리 ID가 없으면 기존 카테고리를 유지한다")
+        @DisplayName("카테고리 ID가 null이면 카테고리를 조회하지 않고 null을 전달한다")
         void updateStore_withoutCategory() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
-            StoreUpdateRequest request = new StoreUpdateRequest(
-                    null,
-                    regionId,
-                    "수정된 가게",
-                    "02-1234-5678",
-                    "https://example.com/store.jpg",
-                    "서울특별시 송파구",
-                    20000,
-                    3500,
-                    40000,
-                    LocalTime.of(10, 0),
-                    LocalTime.of(23, 0)
-            );
+            Region newRegion =
+                    mock(Region.class);
 
-            Region newRegion = mock(Region.class);
+            StoreUpdateRequest request =
+                    new StoreUpdateRequest(
+                            null,
+                            regionId,
+                            "수정된 가게",
+                            "02-1234-5678",
+                            "https://example.com/store.jpg",
+                            "서울특별시 송파구",
+                            20000,
+                            3500,
+                            40000,
+                            LocalTime.of(10, 0),
+                            LocalTime.of(23, 0)
+                    );
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -663,35 +772,165 @@ class OwnerStoreServiceTest {
                     .thenReturn(Optional.of(newRegion));
 
             // when
-            ownerStoreService.updateStore(
-                    storeId,
-                    request,
-                    ownerDetails
-            );
+            OwnerStoreDetailResponse response =
+                    ownerStoreService.updateStore(
+                            storeId,
+                            request,
+                            ownerDetails
+                    );
 
             // then
+            assertThat(response).isNotNull();
+
             verifyNoInteractions(categoryRepository);
 
-            verify(store).update(
-                    null,
-                    newRegion,
-                    request.storeName(),
-                    request.storeTel(),
-                    request.storeImage(),
-                    request.address(),
-                    request.minOrderPrice(),
-                    request.deliveryFee(),
-                    request.freeDeliveryAmount(),
-                    request.openTime(),
-                    request.closeTime()
+            verify(store)
+                    .update(
+                            null,
+                            newRegion,
+                            request.storeName(),
+                            request.storeTel(),
+                            request.storeImage(),
+                            request.address(),
+                            request.minOrderPrice(),
+                            request.deliveryFee(),
+                            request.freeDeliveryAmount(),
+                            request.openTime(),
+                            request.closeTime()
+                    );
+        }
+
+        @Test
+        @DisplayName("지역 ID가 null이면 지역을 조회하지 않고 null을 전달한다")
+        void updateStore_withoutRegion() {
+            // given
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            Category newCategory =
+                    mock(Category.class);
+
+            StoreUpdateRequest request =
+                    new StoreUpdateRequest(
+                            categoryId,
+                            null,
+                            "수정된 가게",
+                            "02-1234-5678",
+                            "https://example.com/store.jpg",
+                            "서울특별시 송파구",
+                            20000,
+                            3500,
+                            40000,
+                            LocalTime.of(10, 0),
+                            LocalTime.of(23, 0)
+                    );
+
+            when(
+                    storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
+                            storeId,
+                            ownerId
+                    )
+            ).thenReturn(Optional.of(store));
+
+            when(categoryRepository.findById(categoryId))
+                    .thenReturn(Optional.of(newCategory));
+
+            // when
+            OwnerStoreDetailResponse response =
+                    ownerStoreService.updateStore(
+                            storeId,
+                            request,
+                            ownerDetails
+                    );
+
+            // then
+            assertThat(response).isNotNull();
+
+            verifyNoInteractions(regionRepository);
+
+            verify(store)
+                    .update(
+                            newCategory,
+                            null,
+                            request.storeName(),
+                            request.storeTel(),
+                            request.storeImage(),
+                            request.address(),
+                            request.minOrderPrice(),
+                            request.deliveryFee(),
+                            request.freeDeliveryAmount(),
+                            request.openTime(),
+                            request.closeTime()
+                    );
+        }
+
+        @Test
+        @DisplayName("카테고리 ID와 지역 ID가 모두 null이면 Repository를 조회하지 않는다")
+        void updateStore_withoutCategoryAndRegion() {
+            // given
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            StoreUpdateRequest request =
+                    new StoreUpdateRequest(
+                            null,
+                            null,
+                            "수정된 가게",
+                            "02-1234-5678",
+                            "https://example.com/store.jpg",
+                            "서울특별시 송파구",
+                            20000,
+                            3500,
+                            40000,
+                            LocalTime.of(10, 0),
+                            LocalTime.of(23, 0)
+                    );
+
+            when(
+                    storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
+                            storeId,
+                            ownerId
+                    )
+            ).thenReturn(Optional.of(store));
+
+            // when
+            OwnerStoreDetailResponse response =
+                    ownerStoreService.updateStore(
+                            storeId,
+                            request,
+                            ownerDetails
+                    );
+
+            // then
+            assertThat(response).isNotNull();
+
+            verifyNoInteractions(
+                    categoryRepository,
+                    regionRepository
             );
+
+            verify(store)
+                    .update(
+                            null,
+                            null,
+                            request.storeName(),
+                            request.storeTel(),
+                            request.storeImage(),
+                            request.address(),
+                            request.minOrderPrice(),
+                            request.deliveryFee(),
+                            request.freeDeliveryAmount(),
+                            request.openTime(),
+                            request.closeTime()
+                    );
         }
 
         @Test
         @DisplayName("존재하지 않는 가게는 수정할 수 없다")
         void updateStore_storeNotFound() {
             // given
-            StoreUpdateRequest request = createUpdateRequest();
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -722,7 +961,8 @@ class OwnerStoreServiceTest {
             Store store =
                     mockStore(StoreOperationStatus.CLOSE_REQUESTED);
 
-            StoreUpdateRequest request = createUpdateRequest();
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -745,27 +985,31 @@ class OwnerStoreServiceTest {
                     regionRepository
             );
 
-            verify(store, never()).update(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any()
-            );
+            verify(store, never())
+                    .update(
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any()
+                    );
         }
 
         @Test
         @DisplayName("CLOSED 상태이면 수정할 수 없다")
         void updateStore_closed() {
             // given
-            Store store = mockStore(StoreOperationStatus.CLOSED);
-            StoreUpdateRequest request = createUpdateRequest();
+            Store store =
+                    mockStore(StoreOperationStatus.CLOSED);
+
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -788,27 +1032,31 @@ class OwnerStoreServiceTest {
                     regionRepository
             );
 
-            verify(store, never()).update(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any()
-            );
+            verify(store, never())
+                    .update(
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any()
+                    );
         }
 
         @Test
         @DisplayName("존재하지 않는 카테고리이면 수정할 수 없다")
         void updateStore_categoryNotFound() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
-            StoreUpdateRequest request = createUpdateRequest();
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -831,28 +1079,34 @@ class OwnerStoreServiceTest {
 
             verifyNoInteractions(regionRepository);
 
-            verify(store, never()).update(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any()
-            );
+            verify(store, never())
+                    .update(
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any()
+                    );
         }
 
         @Test
         @DisplayName("존재하지 않는 지역이면 수정할 수 없다")
         void updateStore_regionNotFound() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
-            Category newCategory = mock(Category.class);
-            StoreUpdateRequest request = createUpdateRequest();
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
+
+            Category newCategory =
+                    mock(Category.class);
+
+            StoreUpdateRequest request =
+                    createUpdateRequest();
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -876,19 +1130,20 @@ class OwnerStoreServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
-            verify(store, never()).update(
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    any()
-            );
+            verify(store, never())
+                    .update(
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any(),
+                            any()
+                    );
         }
     }
 
@@ -900,7 +1155,8 @@ class OwnerStoreServiceTest {
         @DisplayName("가게 삭제 요청에 성공한다")
         void requestDeleteStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             when(
                     storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
@@ -916,7 +1172,8 @@ class OwnerStoreServiceTest {
             );
 
             // then
-            verify(store).requestDelete();
+            verify(store)
+                    .requestDelete();
         }
 
         @Test
@@ -961,10 +1218,9 @@ class OwnerStoreServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
-            verify(store, never()).requestDelete();
+            verify(store, never())
+                    .requestDelete();
         }
-
-
     }
 
     @Nested
@@ -972,45 +1228,73 @@ class OwnerStoreServiceTest {
     class MenuLifecycleScenarioTest {
 
         @Test
-        @DisplayName("마지막 메뉴 삭제로 PREPARING 전환 후, 메뉴 재등록 시 수동 활성화가 가능하다")
+        @DisplayName("마지막 메뉴 삭제로 PREPARING 전환 후 메뉴 재등록 시 수동 활성화가 가능하다")
         void refreshThenReactivate_scenario() {
-            // given: ACTIVE 상태에서 마지막 메뉴가 삭제된 상황
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            // given: ACTIVE 상태에서 마지막 공개 메뉴가 삭제된 상황
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
                     .thenReturn(Optional.of(store));
-            when(menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId))
-                    .thenReturn(false);
 
-            // when: 삭제로 인한 자동 전환
+            when(
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
+            ).thenReturn(false);
+
+            // when: 메뉴 삭제 후 운영 상태 갱신
             ownerStoreService.refreshOperationStatusByMenus(storeId);
 
-            // then: PREPARING으로 전환됨
-            verify(store).preparing();
+            // then: PREPARING 상태로 전환
+            verify(store)
+                    .preparing();
 
-            // given: 이후 상태 조회 시 PREPARING으로 응답하도록 재설정
-            when(store.getOperationStatus()).thenReturn(StoreOperationStatus.PREPARING);
-            when(storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(storeId, ownerId))
-                    .thenReturn(Optional.of(store));
-            when(menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId))
-                    .thenReturn(true); // 메뉴 재등록됨
+            // given: 메뉴 재등록 후 PREPARING 상태
+            when(store.getOperationStatus())
+                    .thenReturn(StoreOperationStatus.PREPARING);
 
-            // when: 사장님이 수동 활성화
-            ownerStoreService.activateStore(storeId, ownerDetails);
+            when(
+                    storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(
+                            storeId,
+                            ownerId
+                    )
+            ).thenReturn(Optional.of(store));
 
-            // then: 다시 ACTIVE로 전환됨
-            verify(store).activate();
+            when(
+                    menuRepository
+                            .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
+                                    storeId
+                            )
+            ).thenReturn(true);
+
+            // when: 사장님이 가게를 다시 활성화
+            ownerStoreService.activateStore(
+                    storeId,
+                    ownerDetails
+            );
+
+            // then
+            verify(store)
+                    .activate();
         }
     }
 
     private Store mockStore(
             StoreOperationStatus operationStatus
     ) {
-        Store store = mock(Store.class);
+        Store store =
+                mock(Store.class);
 
-        User owner = mock(User.class);
-        Category category = mock(Category.class);
-        Region region = mock(Region.class);
+        User owner =
+                mock(User.class);
+
+        Category category =
+                mock(Category.class);
+
+        Region region =
+                mock(Region.class);
 
         lenient().when(store.getId())
                 .thenReturn(storeId);

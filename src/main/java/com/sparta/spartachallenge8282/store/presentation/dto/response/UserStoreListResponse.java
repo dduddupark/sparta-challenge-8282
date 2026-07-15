@@ -14,7 +14,9 @@ public record UserStoreListResponse(
         String storeName,
         String storeImage,
 
+        UUID categoryId,
         String categoryName,
+        UUID regionId,
         String regionName,
 
         BigDecimal storeRating,
@@ -40,7 +42,9 @@ public record UserStoreListResponse(
                 store.getStoreName(),
                 store.getStoreImage(),
 
+                store.getCategory().getId(),
                 store.getCategory().getName(),
+                store.getRegion().getId(),
                 store.getRegion().getName(),
 
                 store.getStoreRating(),

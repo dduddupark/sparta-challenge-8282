@@ -6,9 +6,18 @@ import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.region.domain.Region;
 import com.sparta.spartachallenge8282.store.application.validator.StoreAuthorizationValidator;
-import com.sparta.spartachallenge8282.store.domain.*;
+import com.sparta.spartachallenge8282.store.domain.Store;
+import com.sparta.spartachallenge8282.store.domain.StoreApplication;
+import com.sparta.spartachallenge8282.store.domain.StoreApplicationRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreApplicationStatus;
+import com.sparta.spartachallenge8282.store.domain.StoreOperationStatus;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreRejectRequest;
-import com.sparta.spartachallenge8282.store.presentation.dto.response.*;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.AdminStoreApplicationDetailResponse;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.AdminStoreApplicationListResponse;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.AdminStoreDetailResponse;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.AdminStoreListResponse;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.StoreApplicationProcessResponse;
 import com.sparta.spartachallenge8282.user.domain.User;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +31,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
@@ -33,7 +41,14 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AdminStoreService 테스트")
@@ -239,36 +254,39 @@ class AdminStoreServiceTest {
     class GetStoresTest {
 
         @Test
-        @DisplayName("상태가 없으면 삭제되지 않은 전체 가게를 조회한다")
+        @DisplayName("상태가 없으면 삭제된 가게를 포함한 전체 가게를 조회한다")
         void getStores_all() {
             // given
             PageRequest pageable = PageRequest.of(0, 20);
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
 
-            Page<Store> stores = new PageImpl<>(
-                    List.of(store),
-                    pageable,
-                    1
-            );
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
-            when(storeRepository.findAllByDeletedAtIsNull(pageable))
+            Page<Store> stores =
+                    new PageImpl<>(
+                            List.of(store),
+                            pageable,
+                            1
+                    );
+
+            when(storeRepository.findAll(pageable))
                     .thenReturn(stores);
 
             // when
-            PageResponse<OwnerStoreListResponse> response =
-                    adminStoreService.getStores(null, pageable);
+            PageResponse<AdminStoreListResponse> response =
+                    adminStoreService.getStores(
+                            null,
+                            pageable
+                    );
 
             // then
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findAllByDeletedAtIsNull(pageable);
+                    .findAll(pageable);
 
             verify(storeRepository, never())
-                    .findAllByOperationStatusAndDeletedAtIsNull(
-                            any(),
-                            any(Pageable.class)
-                    );
+                    .findAllByOperationStatus(any(), any());
         }
 
         @Test
@@ -276,27 +294,29 @@ class AdminStoreServiceTest {
         void getStores_byStatus() {
             // given
             PageRequest pageable = PageRequest.of(0, 20);
+
             StoreOperationStatus status =
                     StoreOperationStatus.ACTIVE;
 
-            Store store = mockStore(status);
+            Store store =
+                    mockStore(status);
 
-            Page<Store> stores = new PageImpl<>(
-                    List.of(store),
-                    pageable,
-                    1
-            );
+            Page<Store> stores =
+                    new PageImpl<>(
+                            List.of(store),
+                            pageable,
+                            1
+                    );
 
             when(
-                    storeRepository
-                            .findAllByOperationStatusAndDeletedAtIsNull(
-                                    status,
-                                    pageable
-                            )
+                    storeRepository.findAllByOperationStatus(
+                            status,
+                            pageable
+                    )
             ).thenReturn(stores);
 
             // when
-            PageResponse<OwnerStoreListResponse> response =
+            PageResponse<AdminStoreListResponse> response =
                     adminStoreService.getStores(
                             status,
                             pageable
@@ -306,13 +326,13 @@ class AdminStoreServiceTest {
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findAllByOperationStatusAndDeletedAtIsNull(
+                    .findAllByOperationStatus(
                             status,
                             pageable
                     );
 
             verify(storeRepository, never())
-                    .findAllByDeletedAtIsNull(pageable);
+                    .findAll(pageable);
         }
 
         @Test
@@ -320,21 +340,22 @@ class AdminStoreServiceTest {
         void getStores_empty() {
             // given
             PageRequest pageable = PageRequest.of(0, 20);
+
             StoreOperationStatus status =
                     StoreOperationStatus.PREPARING;
 
-            Page<Store> stores = Page.empty(pageable);
+            Page<Store> stores =
+                    Page.empty(pageable);
 
             when(
-                    storeRepository
-                            .findAllByOperationStatusAndDeletedAtIsNull(
-                                    status,
-                                    pageable
-                            )
+                    storeRepository.findAllByOperationStatus(
+                            status,
+                            pageable
+                    )
             ).thenReturn(stores);
 
             // when
-            PageResponse<OwnerStoreListResponse> response =
+            PageResponse<AdminStoreListResponse> response =
                     adminStoreService.getStores(
                             status,
                             pageable
@@ -344,7 +365,7 @@ class AdminStoreServiceTest {
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findAllByOperationStatusAndDeletedAtIsNull(
+                    .findAllByOperationStatus(
                             status,
                             pageable
                     );
@@ -356,30 +377,31 @@ class AdminStoreServiceTest {
     class GetStoreTest {
 
         @Test
-        @DisplayName("가게 상세 조회에 성공한다")
+        @DisplayName("삭제 여부와 관계없이 가게 상세 조회에 성공한다")
         void getStore_success() {
             // given
-            Store store = mockStore(StoreOperationStatus.ACTIVE);
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
-            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+            when(storeRepository.findById(storeId))
                     .thenReturn(Optional.of(store));
 
             // when
-            OwnerStoreDetailResponse response =
+            AdminStoreDetailResponse response =
                     adminStoreService.getStore(storeId);
 
             // then
             assertThat(response).isNotNull();
 
             verify(storeRepository)
-                    .findByIdAndDeletedAtIsNull(storeId);
+                    .findById(storeId);
         }
 
         @Test
         @DisplayName("존재하지 않는 가게 조회 시 예외가 발생한다")
         void getStore_notFound() {
             // given
-            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+            when(storeRepository.findById(storeId))
                     .thenReturn(Optional.empty());
 
             // when & then
@@ -388,10 +410,8 @@ class AdminStoreServiceTest {
             ).isInstanceOf(CustomException.class);
 
             verify(storeRepository)
-                    .findByIdAndDeletedAtIsNull(storeId);
+                    .findById(storeId);
         }
-
-
     }
 
     @Nested
@@ -427,7 +447,8 @@ class AdminStoreServiceTest {
             verify(validator)
                     .validateManagerRole(managerDetails);
 
-            verify(application).approve();
+            verify(application)
+                    .approve();
 
             verify(storeRepository)
                     .save(any(Store.class));
@@ -566,6 +587,35 @@ class AdminStoreServiceTest {
         }
 
         @Test
+        @DisplayName("거절 사유가 null이면 거절할 수 없다")
+        void rejectStore_nullReason() {
+            // given
+            StoreApplication application =
+                    mockApplication(StoreApplicationStatus.PENDING);
+
+            StoreRejectRequest request =
+                    new StoreRejectRequest(null);
+
+            when(storeApplicationRepository.findById(applicationId))
+                    .thenReturn(Optional.of(application));
+
+            // when & then
+            assertThatThrownBy(() ->
+                    adminStoreService.rejectStore(
+                            applicationId,
+                            request,
+                            managerDetails
+                    )
+            ).isInstanceOf(CustomException.class);
+
+            verify(validator)
+                    .validateManagerRole(managerDetails);
+
+            verify(application, never())
+                    .reject(any());
+        }
+
+        @Test
         @DisplayName("이미 처리된 신청은 거절할 수 없다")
         void rejectStore_invalidStatus() {
             // given
@@ -593,6 +643,29 @@ class AdminStoreServiceTest {
             verify(application, never())
                     .reject(any());
         }
+
+        @Test
+        @DisplayName("존재하지 않는 신청은 거절할 수 없다")
+        void rejectStore_applicationNotFound() {
+            // given
+            StoreRejectRequest request =
+                    new StoreRejectRequest("거절 사유");
+
+            when(storeApplicationRepository.findById(applicationId))
+                    .thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    adminStoreService.rejectStore(
+                            applicationId,
+                            request,
+                            managerDetails
+                    )
+            ).isInstanceOf(CustomException.class);
+
+            verify(validator)
+                    .validateManagerRole(managerDetails);
+        }
     }
 
     @Nested
@@ -603,9 +676,8 @@ class AdminStoreServiceTest {
         @DisplayName("CLOSE_REQUESTED 상태인 가게는 삭제 승인할 수 있다")
         void approveDeleteStore_success() {
             // given
-            Store store = mockStore(
-                    StoreOperationStatus.CLOSE_REQUESTED
-            );
+            Store store =
+                    mockStore(StoreOperationStatus.CLOSE_REQUESTED);
 
             when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
                     .thenReturn(Optional.of(store));
@@ -620,6 +692,9 @@ class AdminStoreServiceTest {
             verify(validator)
                     .validateManagerRole(managerDetails);
 
+            verify(storeRepository)
+                    .findByIdAndDeletedAtIsNull(storeId);
+
             verify(store)
                     .approveDelete(managerDetails.userId());
         }
@@ -628,9 +703,8 @@ class AdminStoreServiceTest {
         @DisplayName("삭제 요청 상태가 아니면 삭제 승인할 수 없다")
         void approveDeleteStore_notRequested() {
             // given
-            Store store = mockStore(
-                    StoreOperationStatus.ACTIVE
-            );
+            Store store =
+                    mockStore(StoreOperationStatus.ACTIVE);
 
             when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
                     .thenReturn(Optional.of(store));
@@ -646,12 +720,15 @@ class AdminStoreServiceTest {
             verify(validator)
                     .validateManagerRole(managerDetails);
 
+            verify(storeRepository)
+                    .findByIdAndDeletedAtIsNull(storeId);
+
             verify(store, never())
                     .approveDelete(anyLong());
         }
 
         @Test
-        @DisplayName("존재하지 않는 가게는 삭제 승인할 수 없다")
+        @DisplayName("존재하지 않거나 이미 삭제된 가게는 삭제 승인할 수 없다")
         void approveDeleteStore_notFound() {
             // given
             when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
@@ -667,6 +744,9 @@ class AdminStoreServiceTest {
 
             verify(validator)
                     .validateManagerRole(managerDetails);
+
+            verify(storeRepository)
+                    .findByIdAndDeletedAtIsNull(storeId);
         }
 
         @Test
@@ -684,6 +764,9 @@ class AdminStoreServiceTest {
                             managerDetails
                     )
             ).isInstanceOf(CustomException.class);
+
+            verify(validator)
+                    .validateManagerRole(managerDetails);
 
             verifyNoInteractions(storeRepository);
         }
@@ -743,7 +826,8 @@ class AdminStoreServiceTest {
     private Store mockStore(
             StoreOperationStatus operationStatus
     ) {
-        Store store = mock(Store.class);
+        Store store =
+                mock(Store.class);
 
         lenient().when(store.getId())
                 .thenReturn(storeId);
@@ -794,7 +878,9 @@ class AdminStoreServiceTest {
                 .thenReturn(operationStatus);
 
         lenient().when(store.isOpen())
-                .thenReturn(operationStatus == StoreOperationStatus.ACTIVE);
+                .thenReturn(
+                        operationStatus == StoreOperationStatus.ACTIVE
+                );
 
         return store;
     }

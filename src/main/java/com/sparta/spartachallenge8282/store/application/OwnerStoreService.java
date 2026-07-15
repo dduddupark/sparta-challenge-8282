@@ -37,8 +37,23 @@ public class OwnerStoreService {
      * 본인 가게 목록 조회
      */
     @Transactional(readOnly = true)
-    public PageResponse<OwnerStoreListResponse> getMyStores(UserDetailsImpl userDetails, Pageable pageable) {
-        Page<Store> stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userDetails.userId(), pageable);
+    public PageResponse<OwnerStoreListResponse> getMyStores(
+            UserDetailsImpl userDetails,
+            Pageable pageable,
+            StoreOperationStatus operationStatus
+            ) {
+
+        Page<Store> stores;
+        if(operationStatus == null){
+            stores = storeRepository.findAllByOwner_IdAndDeletedAtIsNull(userDetails.userId(), pageable);
+        }else{
+            stores = storeRepository.findAllByOwner_IdAndOperationStatusAndDeletedAtIsNull
+                    (
+                            userDetails.userId()
+                            ,operationStatus
+                            ,pageable
+                    );
+        }
         return PageResponse.from(stores.map(OwnerStoreListResponse::from));
     }
 
@@ -68,7 +83,7 @@ public class OwnerStoreService {
                         userDetails.userId()
                 )
                 .orElseThrow(() ->
-                        new CustomException(ErrorCode.STORE_NOT_APPROVED)
+                        new CustomException(ErrorCode.STORE_NOT_FOUND)
                 );
         if (store.getOperationStatus() != StoreOperationStatus.PREPARING) {
             throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);

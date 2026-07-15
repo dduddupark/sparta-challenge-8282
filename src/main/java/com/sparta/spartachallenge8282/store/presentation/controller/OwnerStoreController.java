@@ -5,12 +5,15 @@ import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.application.StoreService;
+import com.sparta.spartachallenge8282.store.domain.StoreOperationStatus;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreOpenStatusRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreUpdateRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.OwnerStoreListResponse;
+import com.sparta.spartachallenge8282.store.presentation.dto.response.UserStoreListResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -32,11 +35,12 @@ public class OwnerStoreController {
      * 자신의 가게 목록 조회
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<?>> getMyStores(
+    public ResponseEntity<ApiResponse<PageResponse<OwnerStoreListResponse>>> getMyStores(
+            @RequestParam(required = false) StoreOperationStatus status,
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PageableDefault(size = 20)Pageable pageable
     ){
-        PageResponse<OwnerStoreListResponse> response = ownerStoreService.getMyStores(userDetails, pageable);
+        PageResponse<OwnerStoreListResponse> response = ownerStoreService.getMyStores(userDetails, pageable, status);
         return ResponseEntity.ok(ApiResponse.success("내 가게 목록 조회 성공", response)
         );
     }

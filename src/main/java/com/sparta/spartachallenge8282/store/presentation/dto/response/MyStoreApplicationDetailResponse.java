@@ -9,6 +9,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 public record MyStoreApplicationDetailResponse(
+        Long applicantId,
         UUID applicationId,
         UUID categoryId,
         UUID regionId,
@@ -30,6 +31,7 @@ public record MyStoreApplicationDetailResponse(
 ) {
     public static MyStoreApplicationDetailResponse from(StoreApplication application) {
         return new MyStoreApplicationDetailResponse(
+                application.getApplicant().getId(),
                 application.getId(),
 
                 application.getCategory().getId(),

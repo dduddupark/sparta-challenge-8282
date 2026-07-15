@@ -10,14 +10,23 @@ import java.util.UUID;
 
 public interface StoreApplicationRepository extends JpaRepository<StoreApplication, UUID> {
 
+    //-----------------------------
     /**
      * 등록 신청한 본인 가게 목록 조회
      */
     @EntityGraph(attributePaths = {
-            "category",
-            "region"
+           "applicant"
     })
     Page<StoreApplication> findAllByApplicant_Id(Long applicantId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {
+            "category", "region"
+    })
+    Page<StoreApplication> findAllByApplicant_IdAndStatus(
+            Long applicantId,
+            StoreApplicationStatus status,
+            Pageable pageable
+    );
 
     /**
      * 등록 신청한 본인 가게 상세 조회
@@ -29,13 +38,14 @@ public interface StoreApplicationRepository extends JpaRepository<StoreApplicati
     })
     Optional<StoreApplication> findByIdAndApplicant_Id(UUID applicationId, Long userId);
 
+
+
+    //-------------------------
     /**
      * 관리자의 상태별 등록 신청 목록 조회
      */
     @EntityGraph(attributePaths = {
-            "applicant",
-            "category",
-            "region"
+            "applicant"
     })
     Page<StoreApplication> findAllByStatus(StoreApplicationStatus status, Pageable pageable);
 

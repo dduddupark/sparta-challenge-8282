@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record MyStoreApplicationListResponse(
+        Long applicantId,
         UUID applicationId,
         String storeName,
         String address,
@@ -19,6 +20,7 @@ public record MyStoreApplicationListResponse(
 ) {
     public static MyStoreApplicationListResponse from(StoreApplication application) {
         return new MyStoreApplicationListResponse(
+                application.getApplicant().getId(),
                 application.getId(),
                 application.getStoreName(),
                 application.getAddress(),

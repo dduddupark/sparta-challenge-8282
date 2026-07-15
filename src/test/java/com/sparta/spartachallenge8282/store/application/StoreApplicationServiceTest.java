@@ -17,8 +17,8 @@ import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApp
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationListResponse;
 import com.sparta.spartachallenge8282.user.domain.User;
-import com.sparta.spartachallenge8282.user.domain.UserRole;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,23 +41,29 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("StoreApplicationService 테스트")
 class StoreApplicationServiceTest {
 
     @Mock
-    private CategoryRepository categoryRepository;
-
-    @Mock
-    private RegionRepository regionRepository;
-
-    @Mock
     private UserRepository userRepository;
 
     @Mock
     private StoreApplicationRepository storeApplicationRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private RegionRepository regionRepository;
 
     @Mock
     private StoreAuthorizationValidator validator;
@@ -156,25 +162,62 @@ class StoreApplicationServiceTest {
             ArgumentCaptor<StoreApplication> captor =
                     ArgumentCaptor.forClass(StoreApplication.class);
 
-            verify(storeApplicationRepository)
-                    .save(captor.capture());
-
             verify(validator)
                     .validateStoreApplicationRole(customerDetails);
 
-            StoreApplication savedApplication = captor.getValue();
+            verify(categoryRepository)
+                    .findById(categoryId);
+
+            verify(regionRepository)
+                    .findById(regionId);
+
+            verify(userRepository)
+                    .findById(customerDetails.userId());
+
+            verify(storeApplicationRepository)
+                    .save(captor.capture());
+
+            StoreApplication savedApplication =
+                    captor.getValue();
 
             assertThat(response).isNotNull();
+
             assertThat(savedApplication.getApplicant())
                     .isEqualTo(applicant);
+
             assertThat(savedApplication.getCategory())
                     .isEqualTo(category);
+
             assertThat(savedApplication.getRegion())
                     .isEqualTo(region);
+
             assertThat(savedApplication.getStoreName())
                     .isEqualTo("테스트가게");
+
             assertThat(savedApplication.getStoreTel())
                     .isEqualTo("010-1234-5678");
+
+            assertThat(savedApplication.getStoreImage())
+                    .isNull();
+
+            assertThat(savedApplication.getAddress())
+                    .isEqualTo("서울특별시 강남구 테헤란로 123");
+
+            assertThat(savedApplication.getMinOrderPrice())
+                    .isEqualTo(15000);
+
+            assertThat(savedApplication.getDeliveryFee())
+                    .isEqualTo(3000);
+
+            assertThat(savedApplication.getFreeDeliveryAmount())
+                    .isEqualTo(30000);
+
+            assertThat(savedApplication.getOpenTime())
+                    .isEqualTo(LocalTime.of(9, 0));
+
+            assertThat(savedApplication.getCloseTime())
+                    .isEqualTo(LocalTime.of(22, 0));
+
             assertThat(savedApplication.getStatus())
                     .isEqualTo(StoreApplicationStatus.PENDING);
         }
@@ -183,7 +226,8 @@ class StoreApplicationServiceTest {
         @DisplayName("MANAGER는 가게 등록을 신청할 수 없다")
         void createStoreApplication_invalidRole() {
             // given
-            StoreApplicationRequest request = createRequest();
+            StoreApplicationRequest request =
+                    createRequest();
 
             doThrow(new CustomException(ErrorCode.ACCESS_DENIED))
                     .when(validator)
@@ -212,7 +256,8 @@ class StoreApplicationServiceTest {
         @DisplayName("존재하지 않는 카테고리이면 가게 등록 신청에 실패한다")
         void createStoreApplication_categoryNotFound() {
             // given
-            StoreApplicationRequest request = createRequest();
+            StoreApplicationRequest request =
+                    createRequest();
 
             when(categoryRepository.findById(categoryId))
                     .thenReturn(Optional.empty());
@@ -242,7 +287,8 @@ class StoreApplicationServiceTest {
         @DisplayName("존재하지 않는 지역이면 가게 등록 신청에 실패한다")
         void createStoreApplication_regionNotFound() {
             // given
-            StoreApplicationRequest request = createRequest();
+            StoreApplicationRequest request =
+                    createRequest();
 
             when(categoryRepository.findById(categoryId))
                     .thenReturn(Optional.of(category));
@@ -258,6 +304,12 @@ class StoreApplicationServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
+            verify(validator)
+                    .validateStoreApplicationRole(customerDetails);
+
+            verify(categoryRepository)
+                    .findById(categoryId);
+
             verify(regionRepository)
                     .findById(regionId);
 
@@ -271,7 +323,8 @@ class StoreApplicationServiceTest {
         @DisplayName("존재하지 않는 사용자이면 가게 등록 신청에 실패한다")
         void createStoreApplication_userNotFound() {
             // given
-            StoreApplicationRequest request = createRequest();
+            StoreApplicationRequest request =
+                    createRequest();
 
             when(categoryRepository.findById(categoryId))
                     .thenReturn(Optional.of(category));
@@ -290,6 +343,15 @@ class StoreApplicationServiceTest {
                     )
             ).isInstanceOf(CustomException.class);
 
+            verify(validator)
+                    .validateStoreApplicationRole(customerDetails);
+
+            verify(categoryRepository)
+                    .findById(categoryId);
+
+            verify(regionRepository)
+                    .findById(regionId);
+
             verify(userRepository)
                     .findById(customerDetails.userId());
 
@@ -303,10 +365,11 @@ class StoreApplicationServiceTest {
     class GetMyStoreApplicationsTest {
 
         @Test
-        @DisplayName("본인의 가게 등록 신청 목록을 페이징 조회한다")
+        @DisplayName("상태값이 없으면 본인의 전체 신청 목록을 페이징 조회한다")
         void getMyStoreApplications_success() {
             // given
-            PageRequest pageable = PageRequest.of(0, 20);
+            PageRequest pageable =
+                    PageRequest.of(0, 20);
 
             StoreApplication application =
                     mockApplication(StoreApplicationStatus.PENDING);
@@ -329,7 +392,8 @@ class StoreApplicationServiceTest {
             PageResponse<MyStoreApplicationListResponse> response =
                     storeApplicationService.getMyStoreApplications(
                             customerDetails,
-                            pageable
+                            pageable,
+                            null
                     );
 
             // then
@@ -340,13 +404,76 @@ class StoreApplicationServiceTest {
                             customerDetails.userId(),
                             pageable
                     );
+
+            verify(storeApplicationRepository, never())
+                    .findAllByApplicant_IdAndStatus(
+                            any(),
+                            any(),
+                            any()
+                    );
+        }
+
+        @Test
+        @DisplayName("상태값을 지정하면 해당 상태의 신청만 페이징 조회한다")
+        void getMyStoreApplications_withStatus() {
+            // given
+            PageRequest pageable =
+                    PageRequest.of(0, 20);
+
+            StoreApplicationStatus status =
+                    StoreApplicationStatus.REJECTED;
+
+            StoreApplication application =
+                    mockApplication(status);
+
+            Page<StoreApplication> applications =
+                    new PageImpl<>(
+                            List.of(application),
+                            pageable,
+                            1
+                    );
+
+            when(
+                    storeApplicationRepository
+                            .findAllByApplicant_IdAndStatus(
+                                    customerDetails.userId(),
+                                    status,
+                                    pageable
+                            )
+            ).thenReturn(applications);
+
+            // when
+            PageResponse<MyStoreApplicationListResponse> response =
+                    storeApplicationService.getMyStoreApplications(
+                            customerDetails,
+                            pageable,
+                            status
+                    );
+
+            // then
+            assertThat(response).isNotNull();
+
+            verify(storeApplicationRepository)
+                    .findAllByApplicant_IdAndStatus(
+                            customerDetails.userId(),
+                            status,
+                            pageable
+                    );
+
+            verify(storeApplicationRepository, never())
+                    .findAllByApplicant_Id(
+                            any(),
+                            any()
+                    );
         }
 
         @Test
         @DisplayName("등록 신청이 없으면 빈 페이지 응답을 반환한다")
         void getMyStoreApplications_empty() {
             // given
-            PageRequest pageable = PageRequest.of(0, 20);
+            PageRequest pageable =
+                    PageRequest.of(0, 20);
+
             Page<StoreApplication> applications =
                     Page.empty(pageable);
 
@@ -361,7 +488,8 @@ class StoreApplicationServiceTest {
             PageResponse<MyStoreApplicationListResponse> response =
                     storeApplicationService.getMyStoreApplications(
                             customerDetails,
-                            pageable
+                            pageable,
+                            null
                     );
 
             // then
@@ -411,8 +539,34 @@ class StoreApplicationServiceTest {
         }
 
         @Test
-        @DisplayName("존재하지 않거나 본인의 신청이 아니면 예외가 발생한다")
+        @DisplayName("존재하지 않는 신청이면 예외가 발생한다")
         void getMyStoreApplication_notFound() {
+            // given
+            when(
+                    storeApplicationRepository.findByIdAndApplicant_Id(
+                            applicationId,
+                            customerDetails.userId()
+                    )
+            ).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() ->
+                    storeApplicationService.getMyStoreApplication(
+                            applicationId,
+                            customerDetails
+                    )
+            ).isInstanceOf(CustomException.class);
+
+            verify(storeApplicationRepository)
+                    .findByIdAndApplicant_Id(
+                            applicationId,
+                            customerDetails.userId()
+                    );
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 신청이면 예외가 발생한다")
+        void getMyStoreApplication_otherApplicant() {
             // given
             when(
                     storeApplicationRepository.findByIdAndApplicant_Id(

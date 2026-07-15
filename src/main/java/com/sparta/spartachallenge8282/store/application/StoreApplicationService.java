@@ -11,6 +11,7 @@ import com.sparta.spartachallenge8282.region.domain.RegionRepository;
 import com.sparta.spartachallenge8282.store.application.validator.StoreAuthorizationValidator;
 import com.sparta.spartachallenge8282.store.domain.StoreApplication;
 import com.sparta.spartachallenge8282.store.domain.StoreApplicationRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreApplicationStatus;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreApplicationRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationCreateResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationDetailResponse;
@@ -18,6 +19,7 @@ import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApp
 import com.sparta.spartachallenge8282.user.domain.User;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,12 +88,19 @@ public class StoreApplicationService {
     @Transactional(readOnly = true)
     public PageResponse<MyStoreApplicationListResponse> getMyStoreApplications(
             UserDetailsImpl userDetails,
-            Pageable pageable
+            Pageable pageable,
+            StoreApplicationStatus applicationStatus
     ) {
-        return PageResponse.from(
-                storeApplicationRepository.findAllByApplicant_Id(userDetails.userId(), pageable)
-                        .map(MyStoreApplicationListResponse::from)
-        );
+        Page<StoreApplication> applications;
+
+        if(applicationStatus == null){
+            applications = storeApplicationRepository.findAllByApplicant_Id(userDetails.userId(), pageable);
+        }else {
+            applications = storeApplicationRepository.findAllByApplicant_IdAndStatus(
+                    userDetails.userId(), applicationStatus, pageable);
+        }
+
+        return PageResponse.from(applications.map(MyStoreApplicationListResponse::from));
     }
 
     /**

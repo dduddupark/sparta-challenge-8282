@@ -21,6 +21,7 @@ import static com.sparta.spartachallenge8282.store.domain.QStore.store;
 @RequiredArgsConstructor
 public class StoreRepositoryCustomImpl implements StoreRepositoryCustom {
 
+
     private final JPAQueryFactory jpaQueryFactory;
     private final QMenu menu  = QMenu.menu;
 
