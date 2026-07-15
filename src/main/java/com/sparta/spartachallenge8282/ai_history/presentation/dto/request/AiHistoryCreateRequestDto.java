@@ -17,7 +17,7 @@ public record AiHistoryCreateRequestDto(
         @NotNull(message = "메뉴 ID는 필수입니다.")
         UUID menuId,
 
-        @Size(max = 1000, message = "프롬프트는 1000자를 초과할 수 없습니다.")
+        @Size(max = 200, message = "프롬프트는 200자를 초과할 수 없습니다.")
         String prompt
 ){
 }

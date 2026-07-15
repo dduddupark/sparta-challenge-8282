@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.review_reply.presentation.dto;
+package com.sparta.spartachallenge8282.review_reply.presentation.dto.response;
 
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReply;
 

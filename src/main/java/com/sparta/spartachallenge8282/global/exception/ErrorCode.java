@@ -81,7 +81,6 @@ public enum ErrorCode {
     // ── Menu (40001 ~ 49999) ────────────────────────────────────────────────
     MENU_NOT_FOUND(40001, HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."),
     NO_MENU_PERMISSION(40002, HttpStatus.FORBIDDEN, "메뉴 관리 권한이 없습니다."),
-    INVALID_MENU_STATUS(40003, HttpStatus.BAD_REQUEST, "유효하지 않은 메뉴 상태입니다."),
     INVALID_MENU_PRICE(40004, HttpStatus.BAD_REQUEST, "메뉴 가격은 0원 이상이어야 합니다."),
     ALREADY_DELETED_MENU(40005, HttpStatus.CONFLICT, "이미 삭제된 메뉴입니다."),
 
@@ -127,6 +126,7 @@ public enum ErrorCode {
     PROMPT_TOO_LONG(70001, HttpStatus.BAD_REQUEST, "프롬프트 글자수 제한을 초과했습니다."),
     NOT_MENU_OWNER(70002, HttpStatus.FORBIDDEN, "본인 메뉴가 아닙니다."),
     MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
+    AI_HISTORY_NOT_FOUND(70004, HttpStatus.NOT_FOUND, "존재하지 않는 AI 이력입니다."),
 
     // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
     REVIEW_INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),

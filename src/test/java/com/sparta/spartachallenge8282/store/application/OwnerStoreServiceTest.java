@@ -239,7 +239,7 @@ class OwnerStoreServiceTest {
             ).thenReturn(Optional.of(store));
 
             when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNull(
+                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
                             storeId
                     )
             ).thenReturn(true);
@@ -254,7 +254,7 @@ class OwnerStoreServiceTest {
             verify(store).activate();
 
             verify(menuRepository)
-                    .existsByStoreIdAndDeletedAtIsNull(storeId);
+                    .existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId);
         }
 
         @Test
@@ -318,7 +318,7 @@ class OwnerStoreServiceTest {
             ).thenReturn(Optional.of(store));
 
             when(
-                    menuRepository.existsByStoreIdAndDeletedAtIsNull(
+                    menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(
                             storeId
                     )
             ).thenReturn(false);

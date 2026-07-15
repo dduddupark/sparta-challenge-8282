@@ -1,6 +1,7 @@
 package com.sparta.spartachallenge8282.review.domain;
 
 import com.sparta.spartachallenge8282.global.config.JpaAuditingConfig;
+import com.sparta.spartachallenge8282.global.config.QueryDslConfig;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,16 +19,18 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest   // JPA 관련 빈만 로드, 인메모리 DB(H2) 사용, 각 테스트 후 롤백
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)@Import({
+        JpaAuditingConfig.class,
+        QueryDslConfig.class
+})
 class ReviewRepositoryTest {
 
     @Autowired
     private ReviewRepository reviewRepository;
 
     @Test
-    @DisplayName("existsByOrderId: 저장된 주문ID로 조회하면 true")
-    void existsByOrderIdTest_true() {
+    @DisplayName("existsByOrderIdAndDeletedAtIsNull: 저장된 주문ID로 조회하면 true")
+    void existsByOrderIdAndDeletedAtIsNullTest_true() {
         // given
         UUID orderId = UUID.randomUUID();
         Review review = Review.builder()
@@ -38,20 +41,20 @@ class ReviewRepositoryTest {
         reviewRepository.save(review);
 
         // when
-        boolean exists = reviewRepository.existsByOrderId(orderId);
-        System.out.println("결과: existsByOrderId(" + orderId + ") = " + exists);
+        boolean exists = reviewRepository.existsByOrderIdAndDeletedAtIsNull(orderId);
+        System.out.println("결과: existsByOrderIdAndDeletedAtIsNull(" + orderId + ") = " + exists);
 
         // then
         assertThat(exists).isTrue();
     }
 
     @Test
-    @DisplayName("existsByOrderId: 저장 안 된 주문ID로 조회하면 false")
-    void existsByOrderIdTest_false() {
+    @DisplayName("existsByOrderIdAndDeletedAtIsNull: 저장 안 된 주문ID로 조회하면 false")
+    void existsByOrderIdAndDeletedAtIsNullTest_false() {
         // when
         UUID orderId = UUID.randomUUID();
-        boolean exists = reviewRepository.existsByOrderId(UUID.randomUUID());
-        System.out.println("결과: existsByOrderId(" + orderId + ") = " + exists);
+        boolean exists = reviewRepository.existsByOrderIdAndDeletedAtIsNull(UUID.randomUUID());
+        System.out.println("결과: existsByOrderIdAndDeletedAtIsNull(" + orderId + ") = " + exists);
 
         // then
         assertThat(exists).isFalse();
@@ -128,5 +131,60 @@ class ReviewRepositoryTest {
 
         // then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("existsByOrderIdAndDeletedAtIsNull: 삭제된 리뷰는 false (재작성 가능해야 함)")
+    void existsByOrderIdAndDeletedAtIsNullTest_false_afterDelete() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        Review review = Review.builder()
+                .requestDto(new ReviewCreateRequestDto(orderId, 5, "삭제될 리뷰", null))
+                .userId(1L)
+                .storeId(UUID.randomUUID())
+                .build();
+        Review saved = reviewRepository.save(review);
+        saved.softDelete(1L);
+        reviewRepository.save(saved);
+
+        // when
+        boolean exists = reviewRepository.existsByOrderIdAndDeletedAtIsNull(orderId);
+        System.out.println("결과: existsByOrderIdAndDeletedAtIsNull(" + orderId + ") = " + exists);
+
+        // then
+        assertThat(exists).isFalse();
+    }
+
+    @Test
+    @DisplayName("삭제된 리뷰가 있는 주문으로 재작성해도 실제 저장까지 성공한다 (partial unique index 검증)")
+    void reCreateReviewAfterSoftDelete_shouldSaveSuccessfully() {
+        // given
+        UUID orderId = UUID.randomUUID();
+        Review review = Review.builder()
+                .requestDto(new ReviewCreateRequestDto(orderId, 5, "첫 리뷰", null))
+                .userId(1L)
+                .storeId(UUID.randomUUID())
+                .build();
+        Review saved = reviewRepository.save(review);
+        saved.softDelete(1L);
+        reviewRepository.saveAndFlush(saved);
+
+        System.out.println("=== 삭제 완료: orderId=" + orderId + ", deletedAt=" + saved.getDeletedAt() + " ===");
+
+        // when
+        Review newReview = Review.builder()
+                .requestDto(new ReviewCreateRequestDto(orderId, 4, "다시 쓴 리뷰", null))
+                .userId(1L)
+                .storeId(UUID.randomUUID())
+                .build();
+
+        try {
+            Review result = reviewRepository.saveAndFlush(newReview);
+            System.out.println("=== 재작성 성공! 새 리뷰 ID: " + result.getId() + " ===");
+        } catch (Exception e) {
+            System.out.println("=== 재작성 실패! 예외 발생: " + e.getClass().getSimpleName() + " ===");
+            System.out.println("=== 메시지: " + e.getMessage() + " ===");
+            throw e;   // 테스트가 실패로 표시되도록 다시 던짐
+        }
     }
 }
