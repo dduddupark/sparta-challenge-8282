@@ -181,6 +181,46 @@ class MenuOptionGroupServiceTest {
     }
 
     @Test
+    void 옵션그룹생성_필수그룹인데_minSelect가_0이면_INVALID_OPTION_SELECT_RANGE를_던진다() {
+        // given
+        UUID menuId = UUID.randomUUID();
+        MenuOptionGroupCreateRequest request =
+                new MenuOptionGroupCreateRequest("음료 선택", true, 0, 1, 1, true);
+        UUID storeId = UUID.randomUUID();
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionGroupService.createOptionGroup(menuId, request, managerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_OPTION_SELECT_RANGE);
+        verify(optionGroupRepository, never()).save(any());
+    }
+
+    @Test
+    void 옵션그룹생성_필수그룹인데_minSelect_미입력이면_기본값0이_적용되어_INVALID_OPTION_SELECT_RANGE를_던진다() {
+        // given
+        UUID menuId = UUID.randomUUID();
+        MenuOptionGroupCreateRequest request =
+                new MenuOptionGroupCreateRequest("음료 선택", true, null, 1, 1, true);
+        UUID storeId = UUID.randomUUID();
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionGroupService.createOptionGroup(menuId, request, managerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_OPTION_SELECT_RANGE);
+        verify(optionGroupRepository, never()).save(any());
+    }
+
+    @Test
     void 옵션그룹생성_OWNER가_본인가게면_성공한다() {
         // given
         UUID menuId = UUID.randomUUID();
@@ -392,6 +432,29 @@ class MenuOptionGroupServiceTest {
         ReflectionTestUtils.setField(group, "id", id);
         MenuOptionGroupUpdateRequest request =
                 new MenuOptionGroupUpdateRequest(null, null, 3, 2, null, null);
+
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(group));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionGroupService.updateOptionGroup(id, request, managerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_OPTION_SELECT_RANGE);
+    }
+
+    @Test
+    void 옵션그룹수정_필수그룹인데_minSelect를_0으로_바꾸면_INVALID_OPTION_SELECT_RANGE를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOptionGroup group = sampleGroup(menuId);
+        ReflectionTestUtils.setField(group, "id", id);
+        MenuOptionGroupUpdateRequest request =
+                new MenuOptionGroupUpdateRequest(null, null, 0, null, null, null);
 
         given(optionGroupRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(group));
         given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
