@@ -1,6 +1,6 @@
-package com.sparta.spartachallenge8282.order.dto.request;
+package com.sparta.spartachallenge8282.order.presentation.dto.request;
 
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
+import com.sparta.spartachallenge8282.order.domain.OrderStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 

@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.order.enums;
+package com.sparta.spartachallenge8282.order.domain;
 
 public enum OrderStatus {
 

@@ -6,12 +6,15 @@ import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
-import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
-import com.sparta.spartachallenge8282.order.dto.request.OrderItemRequestDto;
-import com.sparta.spartachallenge8282.order.entity.Order;
-import com.sparta.spartachallenge8282.order.entity.OrderItem;
-import com.sparta.spartachallenge8282.order.repository.OrderRepository;
-import com.sparta.spartachallenge8282.order.repository.OrderStatusHistoryRepository;
+import com.sparta.spartachallenge8282.order.application.OrderService;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderItemRequestDto;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderItem;
+import com.sparta.spartachallenge8282.order.domain.OrderRepository;
+import com.sparta.spartachallenge8282.order.domain.OrderStatusHistoryRepository;
+import com.sparta.spartachallenge8282.payment.application.PaymentService;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,11 +54,21 @@ class OrderServiceTest {
     @Mock
     private OrderStatusHistoryRepository orderStatusHistoryRepository;
 
+    @Mock
+    private StoreRepository storeRepository;
+    /**
+     *  paymentService
+     */
+    @Mock
+    private PaymentService paymentService;
+
     /**
      * 메뉴 조회를 담당하는 가짜 Repository
      */
     @Mock
     private MenuRepository menuRepository;
+
+
 
     /**
      * 실제로 테스트할 대상 객체
@@ -79,6 +92,8 @@ class OrderServiceTest {
         orderService = new OrderService(
                 orderRepository,
                 orderStatusHistoryRepository,
+                storeRepository,
+                paymentService,
                 menuRepository
         );
 

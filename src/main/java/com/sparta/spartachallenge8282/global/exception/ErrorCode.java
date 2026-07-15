@@ -118,6 +118,7 @@ public enum ErrorCode {
     PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
     PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010, HttpStatus.CONFLICT, "동일한 멱등키로 다른 결제 요청이 접수되었습니다."),
     PAYMENT_ORDER_NOT_PAYABLE(60011, HttpStatus.CONFLICT, "결제할 수 없는 주문 상태입니다."),
+    PAYMENT_NOT_COMPLETED(60012, HttpStatus.BAD_REQUEST, "결제가 완료되지 않은 주문입니다. 주문을 수락할 수 없습니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────

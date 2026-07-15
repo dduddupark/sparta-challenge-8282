@@ -3,9 +3,9 @@ package com.sparta.spartachallenge8282.payment.application;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.order.entity.Order;
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
-import com.sparta.spartachallenge8282.order.repository.OrderRepository;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderStatus;
+import com.sparta.spartachallenge8282.order.domain.OrderRepository;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
@@ -374,5 +374,26 @@ public class PaymentService {
     /** 멱등 키 정규화 — 공백/빈 문자열은 키 미전송(null)으로 취급. */
     private String normalizeKey(String idempotencyKey) {
         return (idempotencyKey == null || idempotencyKey.isBlank()) ? null : idempotencyKey;
+    }
+
+    /**
+     * 주문을 가게에서 수락할 수 있는 결제 상태인지 검증
+     * 현재는 카드 선결제만 지원하므로
+     * PAID 상태의 결제가 존재해야 주문 수락이 가능하
+     * 향후 후불 결제가 추가되면 이 메서드 내부 정책을 확장.
+     */
+    @Transactional(readOnly = true)
+    public void validateOrderAcceptable(UUID orderId) {
+        Payment payment = paymentRepository
+                .findByOrder_IdAndDeletedAtIsNull(orderId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.PAYMENT_NOT_FOUND)
+                );
+
+        if (payment.getStatus() != PaymentStatus.PAID) {
+            throw new CustomException(
+                    ErrorCode.PAYMENT_NOT_COMPLETED
+            );
+        }
     }
 }

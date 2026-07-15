@@ -1,12 +1,12 @@
-package com.sparta.spartachallenge8282.order.controller;
+package com.sparta.spartachallenge8282.order.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.order.dto.request.OrderCreateRequestDto;
-import com.sparta.spartachallenge8282.order.dto.request.OrderStatusUpdateRequestDto;
-import com.sparta.spartachallenge8282.order.dto.response.*;
-import com.sparta.spartachallenge8282.order.service.OrderService;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderStatusUpdateRequestDto;
+import com.sparta.spartachallenge8282.order.presentation.dto.response.*;
+import com.sparta.spartachallenge8282.order.application.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -131,6 +131,4 @@ public class OrderController {
                 ApiResponse.success("주문 상태 변경 성공", response)
         );
     }
-
-
 }

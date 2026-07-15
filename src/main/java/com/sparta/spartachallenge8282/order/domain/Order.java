@@ -1,8 +1,6 @@
-package com.sparta.spartachallenge8282.order.entity;
+package com.sparta.spartachallenge8282.order.domain;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
-import com.sparta.spartachallenge8282.order.entity.OrderItem;
-import com.sparta.spartachallenge8282.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -144,7 +142,7 @@ public class Order extends BaseEntity {
     // 주문 취소 처리
     // 주문 상태를 CANCELED로 변경하고 취소 시간을 기록
     public void cancel() {
-        this.canceledAt = LocalDateTime.now();
+        changeStatus(OrderStatus.CANCELED);
     }
 
     // 주문 상태 변경

@@ -1,7 +1,7 @@
 package com.sparta.spartachallenge8282.payment.domain;
 
 import com.sparta.spartachallenge8282.global.common.BaseEntity;
-import com.sparta.spartachallenge8282.order.entity.Order;
+import com.sparta.spartachallenge8282.order.domain.Order;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
