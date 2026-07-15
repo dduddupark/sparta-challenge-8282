@@ -12,6 +12,7 @@ import com.sparta.spartachallenge8282.menu.domain.Menu;
 import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,7 +104,22 @@ public class AiHistoryService {
      */
 
     @Transactional(readOnly = true)
-    public List<AiHistoryItemResponseDto> getAiHistories(UUID menuId, Pageable pageable) {
+    public List<AiHistoryItemResponseDto> getAiHistories(UUID menuId, Pageable pageable, Long userId, UserRole role) {
+
+        Menu menu = menuRepository.findById(menuId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND_FOR_AI));
+
+        Store store = storeRepository.findById(menu.getStoreId())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        boolean isOwner = store.getOwner().getId().equals(userId);
+        boolean isManagerOrMaster = role == UserRole.MANAGER || role == UserRole.MASTER;
+
+        if (!isOwner && !isManagerOrMaster) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+
         Slice<AiHistory> slice = aiHistoryRepository.findByMenuId(menuId,pageable);
 
         List<AiHistoryItemResponseDto> content = slice.getContent().stream()
@@ -190,6 +206,23 @@ public class AiHistoryService {
         return AiHistoryResultResponseDto.from(aiHistoryRepository.save(aiHistory));
     }
 
+    /**
+     * AI 이력을 삭제한다. 로그성 데이터라 소유자 개념이 없어
+     * MANAGER/MASTER만 삭제할 수 있으며, 물리 삭제(hard delete)로 처리한다.
+     */
+    @Transactional
+    public void deleteAiHistory(UUID aiHistoryId, UserRole role) {
+
+        if (role != UserRole.MANAGER && role != UserRole.MASTER) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        AiHistory aiHistory = aiHistoryRepository.findById(aiHistoryId)
+                .orElseThrow(() -> new CustomException(ErrorCode.AI_HISTORY_NOT_FOUND));
+
+        aiHistoryRepository.delete(aiHistory);
+    }
+
 
     /**
      * 사용자 프롬프트 유무에 따라 자동/수동 모드로 분기해 최종 프롬프트를 만든다.
@@ -199,14 +232,13 @@ public class AiHistoryService {
      * 값이 있으면 수동 모드 - "메뉴명: X. {userPrompt}" 형태로 결합해
      * 사용자 의도를 반영한다.
      */
-
     // 자동모드 / 수동모드 -> 들어온 프롬프트 값에 따라서 분기한다. -> prompt가 null 이면 자동, 있으면 수동
     private String buildPrompt(Menu menu, String userPrompt) {
-        if (userPrompt != null && !userPrompt.isBlank()) {
-            return "메뉴명: " + menu.getName() + ". " + userPrompt;
-        }
+        String base = (userPrompt != null && !userPrompt.isBlank())
+                ? "메뉴명: " + menu.getName() + ". " + userPrompt
+                : menu.getName() + "라는 메뉴가 있는데, 가격은 " + menu.getPrice() + "원이야. 이 메뉴를 소개하는 매력적인 설명을 써줘.";
 
-        return menu.getName() + "라는 메뉴가 있는데, 가격은 " + menu.getPrice() + "원이야. 이 메뉴를 소개하는 매력적인 설명을 50자 이내로 써줘.";
+        return base + " 답변을 최대한 간결하게 50자 이하로 작성해줘.";
     }
 
 

@@ -7,9 +7,11 @@ import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewUpdateRequestDto;
+import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,6 +34,7 @@ class ReviewSummaryTest {
     private OrderRepository orderRepository;
     private UserRepository userRepository;
     private StoreRepository storeRepository;
+    private ReviewReplyRepository reviewReplyRepository;
 
     private ReviewService reviewService;
 
@@ -51,12 +54,14 @@ class ReviewSummaryTest {
         orderRepository = mock(OrderRepository.class);
         userRepository = mock(UserRepository.class);
         storeRepository = mock(StoreRepository.class);
+        reviewReplyRepository = mock(ReviewReplyRepository.class);
 
         reviewService = new ReviewService(
                 reviewRepository,
                 orderRepository,
                 userRepository,
-                storeRepository
+                storeRepository,
+                reviewReplyRepository
         );
 
         userId = 1L;
@@ -92,7 +97,7 @@ class ReviewSummaryTest {
             when(order.getOrderStatus()).thenReturn(OrderStatus.COMPLETED);
             when(order.getStoreId()).thenReturn(storeId);
 
-            when(reviewRepository.existsByOrderId(orderId))
+            when(reviewRepository.existsByOrderIdAndDeletedAtIsNull(orderId))
                     .thenReturn(false);
 
             when(reviewRepository.save(any(Review.class)))
@@ -143,7 +148,7 @@ class ReviewSummaryTest {
             when(order.getOrderStatus()).thenReturn(OrderStatus.COMPLETED);
             when(order.getStoreId()).thenReturn(storeId);
 
-            when(reviewRepository.existsByOrderId(orderId))
+            when(reviewRepository.existsByOrderIdAndDeletedAtIsNull(orderId))
                     .thenReturn(false);
 
             when(reviewRepository.save(any(Review.class)))
@@ -191,7 +196,7 @@ class ReviewSummaryTest {
             when(order.getOrderStatus()).thenReturn(OrderStatus.COMPLETED);
             when(order.getStoreId()).thenReturn(storeId);
 
-            when(reviewRepository.existsByOrderId(orderId))
+            when(reviewRepository.existsByOrderIdAndDeletedAtIsNull(orderId))
                     .thenReturn(false);
 
             when(reviewRepository.save(any(Review.class)))
@@ -393,7 +398,7 @@ class ReviewSummaryTest {
             reviewService.deleteReview(
                     reviewId,
                     userId,
-                    "CUSTOMER"
+                    UserRole.CUSTOMER
             );
 
             // then
@@ -434,7 +439,7 @@ class ReviewSummaryTest {
             reviewService.deleteReview(
                     reviewId,
                     userId,
-                    "CUSTOMER"
+                    UserRole.CUSTOMER
             );
 
             // then
@@ -472,7 +477,7 @@ class ReviewSummaryTest {
             reviewService.deleteReview(
                     reviewId,
                     userId,
-                    "CUSTOMER"
+                    UserRole.CUSTOMER
             );
 
             // then

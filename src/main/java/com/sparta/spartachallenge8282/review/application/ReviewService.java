@@ -12,10 +12,13 @@ import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewRes
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
+import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.User;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -36,7 +39,8 @@ import java.util.stream.Collectors;
  * 2) 배달완료(OrderStatus.COMPLETED) 상태인지(REVIEW_NOT_DELIVERED)
  * 3) 이미 리뷰가 있는 주문인지(REVIEW_ALREADY_EXISTS)
  * 를 순서대로 검증한 뒤, order.getStoreId()로 storeId를 얻어 저장한다.
- * 목록/상세 조회는 인증이 필요 없다 - 생성/수정/삭제만 로그인한 본인 확인이 필요하다.
+ * 모든 엔드포인트는 로그인이 필요하다 - 목록/상세 조회는 로그인 여부만 확인하고
+ * role/소유권 판단은 하지 않으며, 생성/수정/삭제는 각각 별도의 소유권 검증이 있다.
  * 삭제는 본인 또는 MANAGER/MASTER 권한을 가진 경우에도 가능하다.
  */
 
@@ -48,6 +52,7 @@ public class ReviewService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
+    private final ReviewReplyRepository reviewReplyRepository;
 
     @Transactional
     public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId) {
@@ -63,7 +68,7 @@ public class ReviewService {
             throw new CustomException(ErrorCode.REVIEW_NOT_DELIVERED);
         }
 
-        if(reviewRepository.existsByOrderId(requestDto.orderId())) {
+        if(reviewRepository.existsByOrderIdAndDeletedAtIsNull(requestDto.orderId())) {
             throw new CustomException(ErrorCode.REVIEW_ALREADY_EXISTS);
         }
 
@@ -112,7 +117,11 @@ public class ReviewService {
         User user = userRepository.findByIdAndDeletedAtIsNull(review.getUserId())
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        return ReviewResponseDto.from(review, user.getNickname());
+        ReviewReplyResponseDto reply = reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)
+                .map(ReviewReplyResponseDto::from)
+                .orElse(null);
+
+        return ReviewResponseDto.from(review, user.getNickname(), reply);
     }
 
     @Transactional
@@ -134,25 +143,22 @@ public class ReviewService {
     }
 
     @Transactional
-    public void deleteReview(UUID reviewId, Long userId, String role) {
+    public void deleteReview(UUID reviewId, Long userId, UserRole role) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
 
         boolean isOwner = review.getUserId().equals(userId);
-        boolean isManagerOrMaster = "MANAGER".equals(role) || "MASTER".equals(role);
+        boolean isManagerOrMaster = role == UserRole.MANAGER || role == UserRole.MASTER;
 
         if (!isOwner && !isManagerOrMaster) {
             throw new CustomException(ErrorCode.NOT_REVIEW_OWNER);
         }
 
         review.softDelete(userId);
-
         //리뷰 삭제 후 리뷰 집계를 갱신
         refreshStoreReviewSummary(review.getStoreId());
     }
-
-
     /**
      * 리뷰 집계 갱신
      */
