@@ -1,6 +1,5 @@
 package com.sparta.spartachallenge8282.region.presentation.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 

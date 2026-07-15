@@ -12,6 +12,8 @@ import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,19 +31,23 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class CategoryService {
 
+    private static final String ACTIVE_NAME_UNIQUE_INDEX = "uk_category_name_active";
+
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
 
     /**
      * 카테고리 생성.
      *
-     * <p>이름 중복은 여기서 먼저 걸러 {@code DUPLICATE_CATEGORY_NAME} 로 응답하고,
-     * 동시 요청의 최종 방어는 partial unique index({@code uk_category_name_active})가 담당한다.
+     * <p>Service 의 사전 조회는 일반적인 중복 요청을 이해하기 쉬운 도메인 오류로 빠르게 거절한다.
+     * 다만 조회와 INSERT 사이에 다른 요청이 들어오는 경합(TOCTOU)은 막지 못하므로,
+     * 활성 행만 대상으로 하는 partial unique index({@code uk_category_name_active})가 최종 정합성을 보장한다.
+     * 이 인덱스는 JPA 가 자동 생성하지 않으므로 DB 환경마다 별도로 적용해야 한다.
      */
     @Transactional
     public CategoryCreateResponse createCategory(CategoryCreateRequest request) {
-        if(categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
-            throw new CustomException((ErrorCode.DUPLICATE_CATEGORY_NAME));
+        if (categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
+            throw new CustomException(ErrorCode.DUPLICATE_CATEGORY_NAME);
         }
 
         Category category = Category.builder()
@@ -50,7 +56,12 @@ public class CategoryService {
                 .isActive(request.isActive())
                 .build();
 
-        return CategoryCreateResponse.from(categoryRepository.save(category));
+        try {
+            // 커밋까지 미루지 않고 여기서 INSERT 해 DB 유일성 위반을 도메인 오류로 변환한다.
+            return CategoryCreateResponse.from(categoryRepository.saveAndFlush(category));
+        } catch (DataIntegrityViolationException exception) {
+            throw translateActiveNameConflict(exception);
+        }
     }
 
     /** 카테고리 단건 조회. (비활성 카테고리는 조회 대상에서 제외한다 — {@code CATEGORY_NOT_FOUND}) */
@@ -84,9 +95,11 @@ public class CategoryService {
         Category category = categoryRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        if (request.name() != null
-                && !request.name().equals(category.getName())
-                && categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
+        boolean nameChanged = request.name() != null
+                && !request.name().isBlank()
+                && !request.name().equals(category.getName());
+
+        if (nameChanged && categoryRepository.existsByNameAndDeletedAtIsNull(request.name())) {
             throw new CustomException(ErrorCode.DUPLICATE_CATEGORY_NAME);
         }
 
@@ -94,7 +107,36 @@ public class CategoryService {
         category.changeSortOrder(request.sortOrder());
         category.changeActive(request.isActive());
 
+        if (nameChanged) {
+            try {
+                // 이름 변경도 동시 요청이 가능하므로 트랜잭션 종료 전에 제약조건을 확인한다.
+                categoryRepository.flush();
+            } catch (DataIntegrityViolationException exception) {
+                throw translateActiveNameConflict(exception);
+            }
+        }
+
         return CategoryResponse.from(category);
+    }
+
+    /** 해당 partial unique index 충돌만 이름 중복 오류로 바꾸고, 다른 DB 오류는 원인을 보존한다. */
+    private RuntimeException translateActiveNameConflict(DataIntegrityViolationException exception) {
+        if (isCausedByConstraint(exception, ACTIVE_NAME_UNIQUE_INDEX)) {
+            return new CustomException(ErrorCode.DUPLICATE_CATEGORY_NAME);
+        }
+        return exception;
+    }
+
+    private boolean isCausedByConstraint(Throwable throwable, String constraintName) {
+        Throwable cause = throwable;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException constraintViolation
+                    && constraintName.equalsIgnoreCase(constraintViolation.getConstraintName())) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     /**
