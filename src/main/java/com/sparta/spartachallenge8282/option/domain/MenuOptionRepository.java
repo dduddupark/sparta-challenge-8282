@@ -18,6 +18,9 @@ public interface MenuOptionRepository extends JpaRepository<MenuOption, UUID> {
 
     List<MenuOption> findAllByOptionGroupIdAndDeletedAtIsNull(UUID optionGroupId);
 
+    /** 메뉴 계단식 삭제용: 여러 옵션 그룹의 삭제되지 않은 옵션을 한 번에 조회한다. */
+    List<MenuOption> findAllByOptionGroupIdInAndDeletedAtIsNull(List<UUID> optionGroupIds);
+
     /** 옵션 그룹별 옵션 검색. 공개 조회는 Service 에서 isActive=true 로 호출한다. */
     @Query("SELECT o FROM MenuOption o " +
             "WHERE o.deletedAt IS NULL " +

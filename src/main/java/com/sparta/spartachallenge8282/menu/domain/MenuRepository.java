@@ -12,8 +12,11 @@ import java.util.UUID;
 
 public interface MenuRepository extends JpaRepository<Menu, UUID> {
 
-    /** 단건 조회/수정 시: 삭제되지 않은 메뉴만. */
+    /** 관리 경로에서 사용하는 메뉴 조회. 숨김 메뉴도 대상이다. */
     Optional<Menu> findByIdAndDeletedAtIsNull(UUID id);
+
+    /** 공개 단건 조회용. 삭제되었거나 숨김 처리된 메뉴는 조회하지 않는다. */
+    Optional<Menu> findByIdAndDeletedAtIsNullAndIsHiddenFalse(UUID id);
 
     // 삭제 시에는 "없는 것"과 "이미 삭제된 것"을 구분하기 위해 JpaRepository 기본 findById(삭제 포함)를 그대로 쓴다.
 

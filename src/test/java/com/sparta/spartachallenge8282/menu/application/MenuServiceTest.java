@@ -288,7 +288,7 @@ class MenuServiceTest {
         UUID storeId = UUID.randomUUID();
         Menu menu = sampleMenu(storeId);
         ReflectionTestUtils.setField(menu, "id", id);
-        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.of(menu));
 
         // when
         MenuResponse result = menuService.getMenu(id);
@@ -305,7 +305,21 @@ class MenuServiceTest {
     void 단건조회_없는id는_MENU_NOT_FOUND를_던진다() {
         // given
         UUID id = UUID.randomUUID();
-        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.empty());
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.empty());
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.getMenu(id));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
+    }
+
+    @Test
+    void 단건조회_숨김메뉴는_목록과_동일하게_MENU_NOT_FOUND를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.empty());
 
         // when
         CustomException exception = assertThrows(CustomException.class,
@@ -550,7 +564,7 @@ class MenuServiceTest {
         given(menuRepository.findById(id)).willReturn(Optional.of(menu));
         givenStoreExists(storeId);
         given(optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)).willReturn(List.of(group));
-        given(optionRepository.findAllByOptionGroupIdAndDeletedAtIsNull(group.getId())).willReturn(List.of(option));
+        given(optionRepository.findAllByOptionGroupIdInAndDeletedAtIsNull(List.of(group.getId()))).willReturn(List.of(option));
 
         // when
         menuService.deleteMenu(id, user);

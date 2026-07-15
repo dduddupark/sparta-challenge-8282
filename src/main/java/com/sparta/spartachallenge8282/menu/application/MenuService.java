@@ -11,6 +11,7 @@ import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuCreateResponse;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuDeleteResponse;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -79,10 +81,10 @@ public class MenuService {
         return MenuCreateResponse.from(menuRepository.save(menu));
     }
 
-    /** 메뉴 단건 조회. */
+    /** 메뉴 단건 조회. (공개 — 숨김 메뉴 제외) */
     public MenuResponse getMenu(UUID id) {
-        // order 접점: 주문 생성 시 order 도메인이 메뉴 유효성(존재·가게 일치·숨김 여부)을 확인할 때 이 조회를 재사용할 수 있다.
-        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(id)
+        // 공개 조회는 숨김 메뉴를 노출하지 않는다.
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
         return MenuResponse.from(menu);
     }
@@ -157,12 +159,16 @@ public class MenuService {
         }
 
         validateStoreAccess(menu.getStoreId(), user);
-        optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)
-                .forEach(group -> {
-                    optionRepository.findAllByOptionGroupIdAndDeletedAtIsNull(group.getId())
-                            .forEach(option -> option.softDelete(user.userId()));
-                    group.softDelete(user.userId());
-                });
+
+        // 하위 옵션은 그룹 ID 목록으로 한 번에 조회해 삭제한다.
+        List<MenuOptionGroup> groups = optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id);
+        if (!groups.isEmpty()) {
+            List<UUID> groupIds = groups.stream().map(MenuOptionGroup::getId).toList();
+            optionRepository.findAllByOptionGroupIdInAndDeletedAtIsNull(groupIds)
+                    .forEach(option -> option.softDelete(user.userId()));
+            groups.forEach(group -> group.softDelete(user.userId()));
+        }
+
         menu.softDelete(user.userId());
         return MenuDeleteResponse.from(menu);
     }
