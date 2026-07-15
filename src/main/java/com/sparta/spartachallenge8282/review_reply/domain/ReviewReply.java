@@ -13,9 +13,10 @@ import java.util.UUID;
 /**
  * 가게 사장님(OWNER)이 리뷰에 남기는 답글 엔티티.
  *
- * 리뷰와 1:1 관계다 — reviewId 를 UNIQUE 로 제약하여 한 리뷰에 답글이
- * 하나만 달리도록 강제한다. 별도의 답글 단건 조회 API는 없으며, 리뷰 상세/목록
- * 조회 응답에 포함되어 함께 내려간다.
+ * 리뷰(Review)와 1:1 관계다 - deletedAt이 NULL인 행 사이에서만 reviewId가 유니크하도록
+ * DB partial index(uq_review_reply_review_id_active)로 강제한다 (soft delete 후 재작성 허용을 위함).
+ * 자세한 배경은 review 패키지 내 SQL 기록 파일 참고.
+ * 별도의 답글 단건 조회 API는 없으며, 리뷰 상세/목록 조회 응답에 포함되어 함께 내려간다.
  *
  * storeId 는 review.getStoreId() 에서 그대로 복사해와 저장한다.
  * 매 요청마다 Review → Store 로 조인해서 소유주를 확인하는 대신, 이 컬럼으로
@@ -35,7 +36,7 @@ public class ReviewReply extends BaseEntity {
     private UUID id;
 
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private UUID reviewId;
 
     @Column(nullable = false)

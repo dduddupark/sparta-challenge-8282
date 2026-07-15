@@ -1,5 +1,7 @@
 package com.sparta.spartachallenge8282.order.entity;
 
+import com.sparta.spartachallenge8282.order.domain.OrderItem;
+import com.sparta.spartachallenge8282.order.domain.OrderItemOption;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -73,9 +75,8 @@ class OrderItemTest {
          *
          * 총 금액 = 18000
          */
-        //메뉴 옵션 개발 이후 18000원으로 수정.
         assertThat(orderItem.getTotalPrice())
-                .isEqualTo(16000);
+                .isEqualTo(18000);
     }
 
     /**
@@ -126,9 +127,8 @@ class OrderItemTest {
          *
          * 총 금액 = 22000
          */
-        //메뉴 옵션 개발 이후 22000원으로 수정.
         assertThat(orderItem.getTotalPrice())
-                .isEqualTo(16000);
+                .isEqualTo(22000);
     }
 
     /**

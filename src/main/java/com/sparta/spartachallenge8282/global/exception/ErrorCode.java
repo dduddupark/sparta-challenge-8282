@@ -96,6 +96,7 @@ public enum ErrorCode {
     NO_OPTION_PERMISSION(42002, HttpStatus.FORBIDDEN, "옵션 관리 권한이 없습니다."),
     INVALID_OPTION_PRICE(42003, HttpStatus.BAD_REQUEST, "옵션 추가 금액은 0원 이상이어야 합니다."),
     ALREADY_DELETED_OPTION(42004, HttpStatus.CONFLICT, "이미 삭제된 옵션입니다."),
+    INVALID_MENU_OPTION(10501, HttpStatus.BAD_REQUEST, "현재 메뉴에서 선택할 수 없는 옵션입니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
@@ -119,12 +120,14 @@ public enum ErrorCode {
     PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
     PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010, HttpStatus.CONFLICT, "동일한 멱등키로 다른 결제 요청이 접수되었습니다."),
     PAYMENT_ORDER_NOT_PAYABLE(60011, HttpStatus.CONFLICT, "결제할 수 없는 주문 상태입니다."),
+    PAYMENT_NOT_COMPLETED(60012, HttpStatus.BAD_REQUEST, "결제가 완료되지 않은 주문입니다. 주문을 수락할 수 없습니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────
     PROMPT_TOO_LONG(70001, HttpStatus.BAD_REQUEST, "프롬프트 글자수 제한을 초과했습니다."),
     NOT_MENU_OWNER(70002, HttpStatus.FORBIDDEN, "본인 메뉴가 아닙니다."),
     MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
+    AI_HISTORY_NOT_FOUND(70004, HttpStatus.NOT_FOUND, "존재하지 않는 AI 이력입니다."),
 
     // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
     REVIEW_INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),

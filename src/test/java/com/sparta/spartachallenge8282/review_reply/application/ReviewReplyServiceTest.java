@@ -6,8 +6,9 @@ import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReply;
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyRequestDto;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.request.ReviewReplyRequestDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplySliceResponseDto;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.User;
@@ -18,8 +19,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -330,7 +336,7 @@ class ReviewReplyServiceTest {
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
 
         // when & then
-        reviewReplyService.deleteReply(reviewId, ownerId, "OWNER");
+        reviewReplyService.deleteReply(reviewId, ownerId, UserRole.OWNER);
         System.out.println("삭제 완료: reviewId=" + reviewId + ", isDeleted=" + reviewReply.isDeleted());
     }
 
@@ -356,7 +362,7 @@ class ReviewReplyServiceTest {
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
 
         // when & then
-        reviewReplyService.deleteReply(reviewId, managerId, "MANAGER");
+        reviewReplyService.deleteReply(reviewId, managerId, UserRole.MANAGER);
         System.out.println("삭제 완료: reviewId=" + reviewId + ", isDeleted=" + reviewReply.isDeleted());
     }
 
@@ -369,7 +375,7 @@ class ReviewReplyServiceTest {
         when(reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, 1L, "CUSTOMER"))
+        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, 1L, UserRole.CUSTOMER))
                 .isInstanceOf(CustomException.class)
                 .satisfies(this::printException);
     }
@@ -391,7 +397,7 @@ class ReviewReplyServiceTest {
         when(storeRepository.findById(storeId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, 1L, "CUSTOMER"))
+        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, 1L, UserRole.CUSTOMER))
                 .isInstanceOf(CustomException.class)
                 .satisfies(this::printException);
     }
@@ -418,7 +424,52 @@ class ReviewReplyServiceTest {
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
 
         // when & then
-        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, otherUserId, "CUSTOMER"))
+        assertThatThrownBy(() -> reviewReplyService.deleteReply(reviewId, otherUserId, UserRole.CUSTOMER))
+                .isInstanceOf(CustomException.class)
+                .satisfies(this::printException);
+    }
+
+    // ── getRepliesByStore ──────────────────────────────────────
+
+    @Test
+    @DisplayName("가게 답글 목록 조회 성공")
+    void getRepliesByStoreTest_success() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        ReviewReply reply = ReviewReply.builder()
+                .reviewId(UUID.randomUUID())
+                .storeId(storeId)
+                .content("답글입니다")
+                .build();
+
+        Slice<ReviewReply> slice = new SliceImpl<>(List.of(reply), pageable, false);
+
+        when(storeRepository.existsById(storeId)).thenReturn(true);
+        when(reviewReplyRepository.findByStoreIdAndDeletedAtIsNull(storeId, pageable)).thenReturn(slice);
+
+        // when
+        ReviewReplySliceResponseDto result = reviewReplyService.getRepliesByStore(storeId, pageable);
+        System.out.println("결과: " + result);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("가게 답글 목록 조회 실패: 가게 없음")
+    void getRepliesByStoreTest_fail_store_not_found() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(storeRepository.existsById(storeId)).thenReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> reviewReplyService.getRepliesByStore(storeId, pageable))
                 .isInstanceOf(CustomException.class)
                 .satisfies(this::printException);
     }
