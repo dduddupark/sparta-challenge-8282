@@ -225,6 +225,11 @@ public class Store extends BaseEntity {
         this.operationStatus = StoreOperationStatus.ACTIVE;
     }
 
+    public void preparing(){
+        this.operationStatus = StoreOperationStatus.PREPARING;
+        this.isOpen = false;
+    }
+
 
     public void changeOpenStatus(boolean isOpen) {
         this.isOpen = isOpen;

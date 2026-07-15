@@ -16,6 +16,7 @@ import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupReposito
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
+import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class MenuServiceTest {
 
     @Mock
     private StoreRepository storeRepository;
+
+    @Mock
+    private OwnerStoreService ownerStoreService;
 
     @InjectMocks
     private MenuService menuService;
@@ -545,6 +549,7 @@ class MenuServiceTest {
         assertThat(menu.getDeletedAt()).isEqualTo(result.deletedAt());
         assertThat(result.menuId()).isEqualTo(id);
         assertThat(menu.getDeletedBy()).isEqualTo(userId);
+        verify(ownerStoreService).refreshOperationStatusByMenus(storeId);
     }
 
     @Test
@@ -575,6 +580,7 @@ class MenuServiceTest {
         assertThat(option.isDeleted()).isTrue();
         assertThat(group.getDeletedBy()).isEqualTo(userId);
         assertThat(option.getDeletedBy()).isEqualTo(userId);
+        verify(ownerStoreService).refreshOperationStatusByMenus(storeId);
     }
 
     @Test
@@ -589,6 +595,7 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
+        verifyNoInteractions(ownerStoreService);
     }
 
     @Test
@@ -607,6 +614,7 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ALREADY_DELETED_MENU);
+        verifyNoInteractions(ownerStoreService);
     }
 
     // ── 목록 조회 ──────────────────────────────────────────────────────────────
@@ -705,5 +713,6 @@ class MenuServiceTest {
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_MENU_PERMISSION);
         assertThat(menu.isDeleted()).isFalse();
         verifyNoInteractions(optionGroupRepository, optionRepository);
+        verifyNoInteractions(ownerStoreService);
     }
 }
