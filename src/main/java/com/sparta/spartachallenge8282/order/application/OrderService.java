@@ -100,10 +100,11 @@ public class OrderService {
         // 배달비를 더하기 전의 메뉴 + 옵션 총액을 기준.
         store.validateMinimumOrderAmount(menuTotalPrice);
 
-        // 가게에 설정된 배달비 사용.
-        // 기존 DEFAULT_DELIVERY_FEE 상수 대신
-        // Store 도메인의 deliveryFee를 주문에 반영.
-        int deliveryFee = store.getDeliveryFee();
+        // 기존 DEFAULT_DELIVERY_FEE 상수 대신 가게에 설정된 배달비 사용.
+        // * 가게의 무료 배달 정책을 포함하여
+        // * 주문에 적용할 최종 배달비를 계산.
+        int deliveryFee =
+                store.calculateDeliveryFee(menuTotalPrice);
 
         // 서버가 계산한 메뉴 총액과 배달비를 이용해 주문 생성
         Order order = createOrderEntity(

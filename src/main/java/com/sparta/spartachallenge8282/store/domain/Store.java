@@ -286,4 +286,24 @@ public class Store extends BaseEntity {
 //    public int getOrderDeliveryFee() {
 //        return this.deliveryFee;
 //    }
+    /*
+    * 주문 상품 총액을 기준으로 최종 배달비 계산
+     * 무료 배달 기준 금액이 설정되어 있고,
+     * 메뉴와 옵션을 합한 주문 금액이 해당 기준 이상이면
+     * 배달비를 0원으로 반환
+     *
+     * 무료 배달 기준을 충족하지 못하면
+     * 가게에 설정된 기본 배달비를 반환
+    *
+     */
+    public int calculateDeliveryFee(int menuTotalPrice) {
+        // freeDeliveryAmount가 null이면 무료 배달 정책이 설정되지 않은 가게
+        // 주문 상품 총액이 무료 배달 기준 이상이면 배달비를 받지 않는다.
+        if (this.freeDeliveryAmount != null
+                && menuTotalPrice >= this.freeDeliveryAmount) {
+            return 0;
+        }
+
+        return this.deliveryFee;
+    }
 }
