@@ -1,6 +1,7 @@
 package com.sparta.spartachallenge8282.review.presentation.dto.response;
 
 import com.sparta.spartachallenge8282.review.domain.Review;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -19,9 +20,10 @@ public record ReviewResponseDto(
         Integer rating,
         String content,
         String imageUrl,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        ReviewReplyResponseDto reply // null 가능
 ) {
-    public static ReviewResponseDto from(Review review, String userNickname) {
+    public static ReviewResponseDto from(Review review, String userNickname, ReviewReplyResponseDto reply) {
         return new ReviewResponseDto(
                 review.getId(),
                 review.getStoreId(),
@@ -29,7 +31,8 @@ public record ReviewResponseDto(
                 review.getRating(),
                 review.getContent(),
                 review.getImageUrl(),
-                review.getCreatedAt()
+                review.getCreatedAt(),
+                reply
         );
     }
 }

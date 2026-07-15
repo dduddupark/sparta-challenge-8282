@@ -36,5 +36,4 @@ public class StoreAuthorizationValidator {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }
-
 }

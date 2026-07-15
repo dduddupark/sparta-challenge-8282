@@ -3,11 +3,17 @@ package com.sparta.spartachallenge8282.review_reply.presentation;
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyRequestDto;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.request.ReviewReplyRequestDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplySliceResponseDto;
 import com.sparta.spartachallenge8282.review_reply.application.ReviewReplyService;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -65,9 +71,22 @@ public class ReviewReplyController {
             @AuthenticationPrincipal UserDetailsImpl userDetails
             ){
 
-        reviewReplyService.deleteReply(reviewId, userDetails.userId(), userDetails.role());
+        UserRole role = UserRole.valueOf(userDetails.role().substring(5));
+        reviewReplyService.deleteReply(reviewId, userDetails.userId(), role);
 
         return ResponseEntity.ok(ApiResponse.success("답글이 삭제되었습니다."));
+    }
+
+    // 특정 가게의 답글 목록 조회 (페이징)
+    @GetMapping("/replies")
+    public ResponseEntity<ApiResponse<ReviewReplySliceResponseDto>> getRepliesByStore(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam UUID storeId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Pageable normalized = PageableUtil.normalize(pageable);
+        ReviewReplySliceResponseDto response = reviewReplyService.getRepliesByStore(storeId, normalized);
+        return ResponseEntity.ok(ApiResponse.success("조회 성공", response));
     }
 
 }

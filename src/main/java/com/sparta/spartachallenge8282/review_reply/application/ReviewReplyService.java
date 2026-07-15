@@ -4,14 +4,17 @@ import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyRequestDto;
-import com.sparta.spartachallenge8282.review_reply.presentation.dto.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.request.ReviewReplyRequestDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplySliceResponseDto;
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReply;
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
-import jakarta.validation.Valid;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +43,7 @@ public class ReviewReplyService {
     private final StoreRepository storeRepository;
 
     @Transactional
-    public ReviewReplyResponseDto createReply(@Valid ReviewReplyRequestDto requestDto, UUID reviewId, Long userId) {
+    public ReviewReplyResponseDto createReply(ReviewReplyRequestDto requestDto, UUID reviewId, Long userId) {
 
         Review review = reviewRepository.findByIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REPLY_TARGET_REVIEW_NOT_FOUND));
@@ -68,7 +71,7 @@ public class ReviewReplyService {
     }
 
     @Transactional
-    public ReviewReplyResponseDto updateReply(@Valid ReviewReplyRequestDto requestDto, UUID reviewId, Long userId) {
+    public ReviewReplyResponseDto updateReply(ReviewReplyRequestDto requestDto, UUID reviewId, Long userId) {
         ReviewReply reviewReply = reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(()->new CustomException(ErrorCode.REPLY_NOT_FOUND));
 
@@ -84,7 +87,7 @@ public class ReviewReplyService {
     }
 
     @Transactional
-    public void deleteReply(UUID reviewId, Long userId, String role) {
+    public void deleteReply(UUID reviewId, Long userId, UserRole role) {
         ReviewReply reviewReply = reviewReplyRepository.findByReviewIdAndDeletedAtIsNull(reviewId)
                 .orElseThrow(()->new CustomException(ErrorCode.REPLY_NOT_FOUND));
 
@@ -92,7 +95,7 @@ public class ReviewReplyService {
                 .orElseThrow(()->new CustomException(ErrorCode.STORE_NOT_FOUND));
 
         boolean isOwner = store.getOwner().getId().equals(userId);
-        boolean isManagerOrMaster = "MANAGER".equals(role) || "MASTER".equals(role);
+        boolean isManagerOrMaster = role == UserRole.MANAGER || role == UserRole.MASTER;
 
         if (!isOwner && !isManagerOrMaster) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
@@ -101,5 +104,16 @@ public class ReviewReplyService {
         reviewReply.softDelete(userId);
     }
 
+    @Transactional(readOnly = true)
+    public ReviewReplySliceResponseDto getRepliesByStore(UUID storeId, Pageable pageable) {
+
+        if (!storeRepository.existsById(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
+
+        Slice<ReviewReply> slice = reviewReplyRepository.findByStoreIdAndDeletedAtIsNull(storeId, pageable);
+
+        return ReviewReplySliceResponseDto.from(slice);
+    }
 
 }

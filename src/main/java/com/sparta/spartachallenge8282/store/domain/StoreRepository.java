@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface StoreRepository extends JpaRepository<Store, UUID> {
+public interface StoreRepository extends JpaRepository<Store, UUID>, StoreRepositoryCustom {
 
 
     /**
@@ -38,7 +38,7 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
     /**
      * 해당 가게가 이 OWNER 소유인지 존재 검증.
      *
-     * <p>결제 도메인의 OWNER 가게 스코프 권한 검증에 쓰인다
+     * <p>결제/메뉴/옵션 도메인의 OWNER 가게 스코프 권한 검증에 쓰인다
      * (본인 가게 결제만 조회/취소하도록 — {@code payment.order.storeId} 대조).
      * 엔티티 로딩 없이 존재 여부만 확인하는 경량 쿼리.
      */
@@ -46,6 +46,14 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
             UUID storeId,
             Long ownerId
     );
+
+    /**
+     * 삭제되지 않은 가게 존재 여부 검증.
+     *
+     * <p>메뉴/옵션 쓰기 권한 검증에서 먼저 가게 존재 여부를 확인할 때 사용한다.
+     * 엔티티 로딩 없이 존재 여부만 확인하는 경량 쿼리.
+     */
+    boolean existsByIdAndDeletedAtIsNull(UUID storeId);
 
 
     /**

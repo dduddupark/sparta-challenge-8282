@@ -4,10 +4,13 @@ import com.sparta.spartachallenge8282.category.domain.Category;
 import com.sparta.spartachallenge8282.category.domain.CategoryRepository;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryCreateRequest;
 import com.sparta.spartachallenge8282.category.presentation.dto.request.CategoryUpdateRequest;
+import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryCreateResponse;
+import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryDeleteResponse;
 import com.sparta.spartachallenge8282.category.presentation.dto.response.CategoryResponse;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,8 +20,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -59,13 +65,13 @@ class CategoryServiceTest {
                 .name("한식").sortOrder(1).isActive(true)
                 .build();
         ReflectionTestUtils.setField(saved, "id", generatedId);   // 빌더로는 id 를 못 넣어서 주입
-        given(categoryRepository.save(any(Category.class))).willReturn(saved);
+        given(categoryRepository.saveAndFlush(any(Category.class))).willReturn(saved);
 
         // when
-        UUID result = categoryService.createCategory(request);
+        CategoryCreateResponse result = categoryService.createCategory(request);
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.categoryId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -80,7 +86,23 @@ class CategoryServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_CATEGORY_NAME);
-        verify(categoryRepository, never()).save(any());
+        verify(categoryRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 카테고리생성_DB동시성충돌이면_DUPLICATE_CATEGORY_NAME을_던진다() {
+        // given: 사전 조회 뒤 다른 트랜잭션이 같은 이름을 먼저 INSERT 한 상황
+        CategoryCreateRequest request = new CategoryCreateRequest("한식", 1, true);
+        given(categoryRepository.existsByNameAndDeletedAtIsNull("한식")).willReturn(false);
+        given(categoryRepository.saveAndFlush(any(Category.class)))
+                .willThrow(uniqueIndexViolation("uk_category_name_active"));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> categoryService.createCategory(request));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_CATEGORY_NAME);
     }
 
     // ── 단건 조회 ──────────────────────────────────────────────────────────────
@@ -223,6 +245,29 @@ class CategoryServiceTest {
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_CATEGORY_NAME);
     }
 
+    @Test
+    void 카테고리수정_DB동시성충돌이면_DUPLICATE_CATEGORY_NAME을_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Category category = Category.builder()
+                .name("한식").sortOrder(1).isActive(true)
+                .build();
+        ReflectionTestUtils.setField(category, "id", id);
+        CategoryUpdateRequest request = new CategoryUpdateRequest("분식", null, null);
+
+        given(categoryRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(category));
+        given(categoryRepository.existsByNameAndDeletedAtIsNull("분식")).willReturn(false);
+        doThrow(uniqueIndexViolation("uk_category_name_active"))
+                .when(categoryRepository).flush();
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> categoryService.updateCategory(id, request));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_CATEGORY_NAME);
+    }
+
     // ── 삭제 ────────────────────────────────────────────────────────────────
 
     @Test
@@ -239,12 +284,13 @@ class CategoryServiceTest {
         given(storeRepository.existsByCategory_IdAndDeletedAtIsNull(id)).willReturn(false);
 
         // when
-        LocalDateTime deletedAt = categoryService.deleteCategory(id, userId);
+        CategoryDeleteResponse result = categoryService.deleteCategory(id, userId);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(category.isDeleted()).isTrue();
-        assertThat(category.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(category.getDeletedAt()).isEqualTo(result.deletedAt());
+        assertThat(result.categoryId()).isEqualTo(id);
         assertThat(category.getDeletedBy()).isEqualTo(userId);
     }
 
@@ -301,5 +347,20 @@ class CategoryServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ALREADY_DELETED_CATEGORY);
+    }
+
+    /**
+     * DB 인덱스를 직접 생성하는 메서드가 아니라, PostgreSQL unique index 충돌 시 만들어지는
+     * Spring {@link DataIntegrityViolationException} → Hibernate {@link ConstraintViolationException}
+     * 예외 체인을 단위 테스트에서 재현하는 헬퍼다.
+     *
+     * <p>전달한 제약조건 이름을 Hibernate 예외에 넣어 Service가 해당 인덱스 충돌만
+     * {@code DUPLICATE_CATEGORY_NAME}으로 변환하는지 검증한다. 실제 DB 제약조건 동작은
+     * {@link CategoryNamePolicyTest}에서 별도로 확인한다.
+     */
+    private static DataIntegrityViolationException uniqueIndexViolation(String constraintName) {
+        ConstraintViolationException cause = new ConstraintViolationException(
+                "duplicate key", new SQLException(), "insert into p_category", constraintName);
+        return new DataIntegrityViolationException("constraint violation", cause);
     }
 }

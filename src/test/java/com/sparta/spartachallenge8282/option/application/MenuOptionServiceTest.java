@@ -2,13 +2,22 @@ package com.sparta.spartachallenge8282.option.application;
 
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
+import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.menu.domain.Menu;
+import com.sparta.spartachallenge8282.menu.domain.MenuBadge;
+import com.sparta.spartachallenge8282.menu.domain.MenuRepository;
+import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
 import com.sparta.spartachallenge8282.option.domain.MenuOption;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionCreateRequest;
 import com.sparta.spartachallenge8282.option.presentation.dto.request.MenuOptionUpdateRequest;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionCreateResponse;
+import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionDeleteResponse;
 import com.sparta.spartachallenge8282.option.presentation.dto.response.MenuOptionResponse;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
+import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,8 +50,26 @@ class MenuOptionServiceTest {
     @Mock
     private MenuOptionGroupRepository optionGroupRepository;
 
+    @Mock
+    private MenuRepository menuRepository;
+
+    @Mock
+    private StoreRepository storeRepository;
+
     @InjectMocks
     private MenuOptionService optionService;
+
+    private Menu sampleMenu(UUID storeId) {
+        return Menu.builder()
+                .storeId(storeId)
+                .name("후라이드")
+                .description("바삭한 후라이드")
+                .price(18000)
+                .sortOrder(1)
+                .status(MenuStatus.ON_SALE)
+                .badge(MenuBadge.NONE)
+                .build();
+    }
 
     private MenuOptionGroup sampleGroup(UUID menuId) {
         return MenuOptionGroup.builder()
@@ -66,10 +93,36 @@ class MenuOptionServiceTest {
                 .build();
     }
 
+    private UserDetailsImpl managerUser() {
+        return new UserDetailsImpl(1L, "manager@test.com", UserRole.MANAGER.getAuthority());
+    }
+
+    private UserDetailsImpl ownerUser(Long userId) {
+        return new UserDetailsImpl(userId, "owner@test.com", UserRole.OWNER.getAuthority());
+    }
+
+    private UserDetailsImpl customerUser() {
+        return new UserDetailsImpl(2L, "customer@test.com", UserRole.CUSTOMER.getAuthority());
+    }
+
+    private UserDetailsImpl masterUser() {
+        return new UserDetailsImpl(3L, "master@test.com", UserRole.MASTER.getAuthority());
+    }
+
+    private void givenStoreExists(UUID storeId) {
+        given(storeRepository.existsByIdAndDeletedAtIsNull(storeId)).willReturn(true);
+    }
+
+    private void givenOwnerOwnsStore(UUID storeId, Long ownerId) {
+        given(storeRepository.existsByIdAndOwner_IdAndDeletedAtIsNull(storeId, ownerId)).willReturn(true);
+    }
+
     @Test
     void 옵션생성_성공하면_생성된_id를_반환한다() {
         // given
         UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
         MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
 
         UUID generatedId = UUID.randomUUID();
@@ -77,14 +130,16 @@ class MenuOptionServiceTest {
         ReflectionTestUtils.setField(saved, "id", generatedId);
 
         given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
-                .willReturn(Optional.of(sampleGroup(UUID.randomUUID())));
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
         given(optionRepository.save(any(MenuOption.class))).willReturn(saved);
 
         // when
-        UUID result = optionService.createOption(optionGroupId, request);
+        MenuOptionCreateResponse result = optionService.createOption(optionGroupId, request, managerUser());
 
         // then
-        assertThat(result).isEqualTo(generatedId);
+        assertThat(result.optionId()).isEqualTo(generatedId);
     }
 
     @Test
@@ -96,7 +151,7 @@ class MenuOptionServiceTest {
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.createOption(optionGroupId, request));
+                () -> optionService.createOption(optionGroupId, request, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.OPTION_GROUP_NOT_FOUND);
@@ -107,17 +162,114 @@ class MenuOptionServiceTest {
     void 옵션생성_가격이_음수면_INVALID_OPTION_PRICE를_던진다() {
         // given
         UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
         MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", -1000, 1, true);
         given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
-                .willReturn(Optional.of(sampleGroup(UUID.randomUUID())));
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.createOption(optionGroupId, request));
+                () -> optionService.createOption(optionGroupId, request, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_OPTION_PRICE);
         verify(optionRepository, never()).save(any());
+    }
+
+    @Test
+    void 옵션생성_OWNER가_본인가게면_성공한다() {
+        // given
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
+        MenuOption saved = sampleOption(optionGroupId);
+        ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+        givenOwnerOwnsStore(storeId, owner.userId());
+        given(optionRepository.save(any(MenuOption.class))).willReturn(saved);
+
+        // when
+        MenuOptionCreateResponse result = optionService.createOption(optionGroupId, request, owner);
+
+        // then
+        assertThat(result.optionId()).isEqualTo(saved.getId());
+    }
+
+    @Test
+    void 옵션생성_CUSTOMER면_ACCESS_DENIED를_던진다() {
+        // given
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionService.createOption(optionGroupId, request, customerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ACCESS_DENIED);
+        verify(storeRepository, never()).existsByIdAndDeletedAtIsNull(any());
+        verify(optionRepository, never()).save(any());
+    }
+
+    @Test
+    void 옵션생성_없는가게면_STORE_NOT_FOUND를_던진다() {
+        // given
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionService.createOption(optionGroupId, request, masterUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.STORE_NOT_FOUND);
+        verify(optionRepository, never()).save(any());
+    }
+
+    @Test
+    void 옵션생성_MASTER면_성공한다() {
+        // given
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
+        MenuOption saved = sampleOption(optionGroupId);
+        ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+        given(optionRepository.save(any(MenuOption.class))).willReturn(saved);
+
+        // when
+        MenuOptionCreateResponse result = optionService.createOption(optionGroupId, request, masterUser());
+
+        // then
+        assertThat(result.optionId()).isEqualTo(saved.getId());
+        verify(storeRepository, never())
+                .existsByIdAndOwner_IdAndDeletedAtIsNull(any(), any());
     }
 
     @Test
@@ -196,14 +348,20 @@ class MenuOptionServiceTest {
     void 옵션수정_성공하면_수정된_MenuOptionResponse를_반환한다() {
         // given
         UUID id = UUID.randomUUID();
-        MenuOption option = sampleOption(UUID.randomUUID());
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOption option = sampleOption(optionGroupId);
         ReflectionTestUtils.setField(option, "id", id);
         MenuOptionUpdateRequest request = new MenuOptionUpdateRequest("사이다", 500, 2, false);
 
         given(optionRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(option));
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId)).willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
 
         // when
-        MenuOptionResponse result = optionService.updateOption(id, request);
+        MenuOptionResponse result = optionService.updateOption(id, request, managerUser());
 
         // then
         assertThat(result.name()).isEqualTo("사이다");
@@ -221,7 +379,7 @@ class MenuOptionServiceTest {
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.updateOption(id, request));
+                () -> optionService.updateOption(id, request, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.OPTION_NOT_FOUND);
@@ -231,18 +389,49 @@ class MenuOptionServiceTest {
     void 옵션수정_가격이_음수면_INVALID_OPTION_PRICE를_던진다() {
         // given
         UUID id = UUID.randomUUID();
-        MenuOption option = sampleOption(UUID.randomUUID());
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOption option = sampleOption(optionGroupId);
         ReflectionTestUtils.setField(option, "id", id);
         MenuOptionUpdateRequest request = new MenuOptionUpdateRequest(null, -500, null, null);
 
         given(optionRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(option));
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId)).willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.updateOption(id, request));
+                () -> optionService.updateOption(id, request, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_OPTION_PRICE);
+    }
+
+    @Test
+    void 옵션수정_OWNER가_본인가게가_아니면_NO_OPTION_PERMISSION을_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        MenuOption option = sampleOption(optionGroupId);
+        ReflectionTestUtils.setField(option, "id", id);
+        MenuOptionUpdateRequest request = new MenuOptionUpdateRequest("사이다", null, null, null);
+
+        given(optionRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(option));
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId)).willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionService.updateOption(id, request, owner));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_OPTION_PERMISSION);
     }
 
     @Test
@@ -250,18 +439,26 @@ class MenuOptionServiceTest {
         // given
         UUID id = UUID.randomUUID();
         Long userId = 1L;
-        MenuOption option = sampleOption(UUID.randomUUID());
+        UserDetailsImpl user = managerUser();
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOption option = sampleOption(optionGroupId);
         ReflectionTestUtils.setField(option, "id", id);
 
         given(optionRepository.findById(id)).willReturn(Optional.of(option));
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId)).willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId)).willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
 
         // when
-        LocalDateTime deletedAt = optionService.deleteOption(id, userId);
+        MenuOptionDeleteResponse result = optionService.deleteOption(id, user);
 
         // then
-        assertThat(deletedAt).isNotNull();
+        assertThat(result.optionId()).isEqualTo(id);
+        assertThat(result.deletedAt()).isNotNull();
         assertThat(option.isDeleted()).isTrue();
-        assertThat(option.getDeletedAt()).isEqualTo(deletedAt);
+        assertThat(option.getDeletedAt()).isEqualTo(result.deletedAt());
         assertThat(option.getDeletedBy()).isEqualTo(userId);
     }
 
@@ -273,7 +470,7 @@ class MenuOptionServiceTest {
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.deleteOption(id, 1L));
+                () -> optionService.deleteOption(id, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.OPTION_NOT_FOUND);
@@ -291,9 +488,56 @@ class MenuOptionServiceTest {
 
         // when
         CustomException exception = assertThrows(CustomException.class,
-                () -> optionService.deleteOption(id, 1L));
+                () -> optionService.deleteOption(id, managerUser()));
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ALREADY_DELETED_OPTION);
+    }
+
+    @Test
+    void 옵션생성_OWNER가_본인가게가_아니면_NO_OPTION_PERMISSION을_던진다() {
+        // given
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOptionCreateRequest request = new MenuOptionCreateRequest("콜라", 1000, 1, true);
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionService.createOption(optionGroupId, request, ownerUser(1L)));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_OPTION_PERMISSION);
+        verify(optionRepository, never()).save(any());
+    }
+
+    @Test
+    void 옵션삭제_OWNER가_본인가게가_아니면_NO_OPTION_PERMISSION을_던진다() {
+        // given
+        UUID optionId = UUID.randomUUID();
+        UUID optionGroupId = UUID.randomUUID();
+        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        MenuOption option = sampleOption(optionGroupId);
+        ReflectionTestUtils.setField(option, "id", optionId);
+        given(optionRepository.findById(optionId)).willReturn(Optional.of(option));
+        given(optionGroupRepository.findByIdAndDeletedAtIsNull(optionGroupId))
+                .willReturn(Optional.of(sampleGroup(menuId)));
+        given(menuRepository.findByIdAndDeletedAtIsNull(menuId))
+                .willReturn(Optional.of(sampleMenu(storeId)));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> optionService.deleteOption(optionId, ownerUser(1L)));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_OPTION_PERMISSION);
+        assertThat(option.isDeleted()).isFalse();
     }
 }

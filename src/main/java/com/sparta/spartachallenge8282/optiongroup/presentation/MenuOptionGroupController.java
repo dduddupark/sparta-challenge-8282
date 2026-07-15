@@ -28,15 +28,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
  * 옵션 그룹 REST 컨트롤러.
  *
- * <p>경로가 갈려 클래스 {@code @RequestMapping} 없이 메서드마다 전체 경로 명시.
- * 생성/목록은 메뉴 하위({@code /menus/{menuId}/option-groups}), 단건/수정/삭제는 {@code /option-groups/{optionGroupId}}.
- * 쓰기는 OWNER/MANAGER/MASTER(소유권 검증은 auth 브랜치), 조회는 비로그인 공개.
+ * <p>옵션 그룹 생성/목록은 메뉴 하위 경로를 사용하고,
+ * 단건 조회/수정/삭제는 옵션 그룹 ID 기준 경로를 사용한다.
+ *
+ * <p>쓰기 요청은 OWNER/MANAGER/MASTER 권한이 필요하며,
+ * 조회는 비로그인 공개다.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -49,10 +50,11 @@ public class MenuOptionGroupController {
     @PostMapping("/menus/{menuId}/option-groups")
     public ResponseEntity<ApiResponse<MenuOptionGroupCreateResponse>> createOptionGroup(
             @PathVariable UUID menuId,
-            @Valid @RequestBody MenuOptionGroupCreateRequest request) {
-        UUID id = optionGroupService.createOptionGroup(menuId, request);
+            @Valid @RequestBody MenuOptionGroupCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("옵션 그룹 생성 완료", new MenuOptionGroupCreateResponse(id)));
+                .body(ApiResponse.success("옵션 그룹 생성 완료",
+                        optionGroupService.createOptionGroup(menuId, request, userDetails)));
     }
 
     @GetMapping("/menus/{menuId}/option-groups")
@@ -78,9 +80,11 @@ public class MenuOptionGroupController {
     @PatchMapping("/option-groups/{optionGroupId}")
     public ResponseEntity<ApiResponse<MenuOptionGroupResponse>> updateOptionGroup(
             @PathVariable UUID optionGroupId,
-            @Valid @RequestBody MenuOptionGroupUpdateRequest request) {
+            @Valid @RequestBody MenuOptionGroupUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 그룹 수정 완료", optionGroupService.updateOptionGroup(optionGroupId, request)));
+                ApiResponse.success("옵션 그룹 수정 완료",
+                        optionGroupService.updateOptionGroup(optionGroupId, request, userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
@@ -88,8 +92,7 @@ public class MenuOptionGroupController {
     public ResponseEntity<ApiResponse<MenuOptionGroupDeleteResponse>> deleteOptionGroup(
             @PathVariable UUID optionGroupId,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        LocalDateTime deletedAt = optionGroupService.deleteOptionGroup(optionGroupId, userDetails.userId());
         return ResponseEntity.ok(
-                ApiResponse.success("옵션 그룹 삭제 완료", new MenuOptionGroupDeleteResponse(optionGroupId, deletedAt)));
+                ApiResponse.success("옵션 그룹 삭제 완료", optionGroupService.deleteOptionGroup(optionGroupId, userDetails)));
     }
 }
