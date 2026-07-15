@@ -15,6 +15,15 @@ import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderItemRe
 import com.sparta.spartachallenge8282.order.presentation.dto.response.*;
 import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
 import com.sparta.spartachallenge8282.store.domain.Store;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderItemRequestDto;
+import com.sparta.spartachallenge8282.order.domain.Order;
+import com.sparta.spartachallenge8282.order.domain.OrderItem;
+import com.sparta.spartachallenge8282.order.domain.OrderStatusHistory;
+import com.sparta.spartachallenge8282.order.domain.OrderStatus;
+import com.sparta.spartachallenge8282.order.presentation.dto.response.*;
+import com.sparta.spartachallenge8282.order.domain.OrderRepository;
+import com.sparta.spartachallenge8282.order.presentation.dto.request.OrderCreateRequestDto;
+import com.sparta.spartachallenge8282.order.domain.OrderStatusHistoryRepository;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -125,6 +134,7 @@ public class OrderService {
     /**
      * 주문 요청에 포함된 상품 목록을
      * 실제 OrderItem 목록으로 변환한다.
+     * 요청 DTO의 상품 목록을 실제 OrderItem 목록으로 변환
      */
     private List<OrderItem> createOrderItems(
             OrderCreateRequestDto request
@@ -144,6 +154,7 @@ public class OrderService {
      * 요청 DTO의 상품 목록을 실제 OrderItem 목록으로 변환
      * 주문 요청의 메뉴 및 옵션 정보를 기반으로 주문 상품 스냅샷 생성.
      */
+    // 주문 당시 메뉴 정보를 orderitem에 주입
     private OrderItem createOrderItem(
             UUID requestStoreId,
             OrderItemRequestDto itemRequest

@@ -98,4 +98,5 @@ public class OrderItem extends BaseEntity {
                 (this.menuPrice + totalOptionPrice)
                         * this.quantity;
     }
+
 }
