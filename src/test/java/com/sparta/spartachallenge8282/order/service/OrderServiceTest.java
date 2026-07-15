@@ -18,6 +18,7 @@ import com.sparta.spartachallenge8282.order.domain.OrderItem;
 import com.sparta.spartachallenge8282.order.domain.OrderRepository;
 import com.sparta.spartachallenge8282.order.domain.OrderStatusHistoryRepository;
 import com.sparta.spartachallenge8282.payment.application.PaymentService;
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
 import com.sparta.spartachallenge8282.store.domain.Store;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,6 +108,8 @@ class OrderServiceTest {
     private Long customerId;
     private UUID storeId;
     private UUID menuId;
+    // 주문과 함께 생성되는 결제의 중복 처리 방지 키
+    private String idempotencyKey;
 
     /**
      * 각 테스트가 실행되기 전에 호출된다.
@@ -128,6 +131,8 @@ class OrderServiceTest {
         customerId = 1L;
         storeId = UUID.randomUUID();
         menuId = UUID.randomUUID();
+        // 각 테스트에서 사용할 결제 멱등키
+        idempotencyKey = "order-payment-test-key";
     }
 
     /**
@@ -169,7 +174,7 @@ class OrderServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 실제 주문 생성 서비스 호출
-        orderService.createOrder(customerId, request);
+        orderService.createOrder(customerId, request,idempotencyKey);
 
         // save()에 전달된 Order 객체를 꺼내기 위한 캡처 객체
         ArgumentCaptor<Order> orderCaptor =
@@ -236,6 +241,19 @@ class OrderServiceTest {
         // OrderItem이 생성된 Order를 참조하는지 확인
         assertThat(savedOrderItem.getOrder())
                 .isSameAs(savedOrder);
+
+        /*
+         * 저장된 주문을 기준으로 결제가 생성됐는지 확인한다.
+         *
+         * 결제 금액은 PaymentService 내부에서
+         * savedOrder.getTotalPrice()를 사용한다.
+         */
+        verify(paymentService).createPaymentForOrder(
+                savedOrder,
+                customerId,
+                PaymentMethod.CARD,
+                idempotencyKey
+        );
     }
 
     /**
@@ -260,7 +278,7 @@ class OrderServiceTest {
 
         // 주문 생성 시 MENU_NOT_FOUND 예외가 발생하는지 확인
         assertThatThrownBy(() ->
-                orderService.createOrder(customerId, request)
+                orderService.createOrder(customerId, request,idempotencyKey)
         )
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> {
@@ -311,7 +329,7 @@ class OrderServiceTest {
 
         // 메뉴의 가게와 요청 가게가 다르므로 예외가 발생해야 한다
         assertThatThrownBy(() ->
-                orderService.createOrder(customerId, request)
+                orderService.createOrder(customerId, request,idempotencyKey)
         )
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> {
@@ -358,7 +376,7 @@ class OrderServiceTest {
 
         // 숨김 메뉴는 주문할 수 없으므로 예외가 발생해야 한다
         assertThatThrownBy(() ->
-                orderService.createOrder(customerId, request)
+                orderService.createOrder(customerId, request,idempotencyKey)
         )
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> {
@@ -408,7 +426,7 @@ class OrderServiceTest {
 
         // 품절 메뉴는 주문할 수 없으므로 예외가 발생해야 한다
         assertThatThrownBy(() ->
-                orderService.createOrder(customerId, request)
+                orderService.createOrder(customerId, request,idempotencyKey)
         )
                 .isInstanceOf(CustomException.class)
                 .satisfies(exception -> {
@@ -447,7 +465,10 @@ class OrderServiceTest {
                 "서울특별시 종로구 세종대로 175",
                 "101동 1001호",
                 "문 앞에 놓아주세요.",
-                List.of(orderItem)
+                List.of(orderItem),
+                // 현재 프로젝트에서 지원하는 결제 수단
+                PaymentMethod.CARD
+
         );
     }
 
@@ -537,7 +558,8 @@ class OrderServiceTest {
                                         1,
                                         List.of()
                                 )
-                        )
+                        ),
+                        PaymentMethod.CARD
                 );
 
         mockStoreForSuccessfulOrder(request.storeId());
@@ -557,7 +579,7 @@ class OrderServiceTest {
                 );
 
         // 주문 생성 서비스 실행
-        orderService.createOrder(customerId, request);
+        orderService.createOrder(customerId, request,idempotencyKey);
 
         // Repository에 전달된 Order 객체를 확인하기 위한 Captor
         ArgumentCaptor<Order> captor =
@@ -663,7 +685,8 @@ class OrderServiceTest {
                         "서울특별시 종로구",
                         "101동 1001호",
                         "문 앞에 놓아주세요.",
-                        List.of(orderItemRequest)
+                        List.of(orderItemRequest),
+                        PaymentMethod.CARD
                 );
 
         mockStoreForSuccessfulOrder(request.storeId());
@@ -688,7 +711,7 @@ class OrderServiceTest {
                 );
 
         // when
-        orderService.createOrder(customerId, request);
+        orderService.createOrder(customerId, request,idempotencyKey);
 
         // then
 

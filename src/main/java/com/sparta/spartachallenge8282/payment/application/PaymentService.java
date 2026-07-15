@@ -6,6 +6,7 @@ import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.order.domain.Order;
 import com.sparta.spartachallenge8282.order.domain.OrderStatus;
 import com.sparta.spartachallenge8282.order.domain.OrderRepository;
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCancelRequest;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentCreateRequest;
 import com.sparta.spartachallenge8282.payment.presentation.dto.request.PaymentRefundRequest;
@@ -395,5 +396,61 @@ public class PaymentService {
                     ErrorCode.PAYMENT_NOT_COMPLETED
             );
         }
+    }
+
+    /**
+     * 주문 생성 직후 결제를 생성한다.
+         1. 주문자가 맞는지 확인
+         2. 주문 상태가 PENDING인지 확인
+         3. 주문의 totalPrice를 결제 금액으로 사용
+         4. Payment 생성
+         5. Payment 저장
+     * OrderService에서 이미 생성한 Order를 전달받기 때문에
+     * 주문을 다시 조회하지 않는다.
+     */
+    @Transactional
+    public void createPaymentForOrder(
+            Order order,
+            Long userId,
+            PaymentMethod paymentMethod,
+            String idempotencyKey
+    ) {
+        /*
+         * 로그인한 사용자가 실제 주문자인지 확인한다.
+         */
+        if (!order.getUserId().equals(userId)) {
+            throw new CustomException(
+                    ErrorCode.ACCESS_DENIED
+            );
+        }
+
+        /*
+         * 새로 생성된 주문은 PENDING 상태여야 한다.
+         */
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new CustomException(
+                    ErrorCode.PAYMENT_ORDER_NOT_PAYABLE
+            );
+        }
+
+        /*
+         * 결제 금액은 클라이언트에게 받지 않고
+         * Order가 계산한 최종 금액을 사용한다.
+         */
+        long paymentAmount = order.getTotalPrice();
+
+        Payment payment = Payment.builder()
+                .order(order)
+                .amount(paymentAmount)
+                .method(paymentMethod)
+                .status(PaymentStatus.PAID)
+                .transactionId(generateTransactionId())
+                .idempotencyKey(
+                        normalizeKey(idempotencyKey)
+                )
+                .paidAt(LocalDateTime.now())
+                .build();
+
+        paymentRepository.save(payment);
     }
 }

@@ -28,18 +28,45 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    // 강한 결합이 아닌 msa로 변환할 때 확장성을 고려한 코드
+//    @PostMapping
+//    public ResponseEntity<ApiResponse<OrderCreateResponseDto>> createOrder(
+//            @AuthenticationPrincipal UserDetailsImpl userDetails,
+//            @Valid @RequestBody OrderCreateRequestDto request
+//    ) {
+//        OrderCreateResponseDto response = orderService.createOrder(
+//                userDetails.userId(),
+//                request
+//        );
+//
+//        return ResponseEntity.ok(
+//                ApiResponse.success("주문 생성 성공", response)
+//        );
+//    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<OrderCreateResponseDto>> createOrder(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
+
+            // 중복 결제 방지용 키
+            @RequestHeader(
+                    value = "Idempotency-Key",
+                    required = false
+            ) String idempotencyKey,
+
             @Valid @RequestBody OrderCreateRequestDto request
     ) {
         OrderCreateResponseDto response = orderService.createOrder(
                 userDetails.userId(),
-                request
+                request,
+                idempotencyKey
         );
 
         return ResponseEntity.ok(
-                ApiResponse.success("주문 생성 성공", response)
+                ApiResponse.success(
+                        "주문 및 결제 생성 성공",
+                        response
+                )
         );
     }
 

@@ -87,7 +87,8 @@ public class OrderService {
      */
     public OrderCreateResponseDto createOrder(
             Long userId,
-            OrderCreateRequestDto request
+            OrderCreateRequestDto request,
+            String idempotencyKey
     ) {
 
         /*
@@ -127,6 +128,19 @@ public class OrderService {
         orderItems.forEach(order::addOrderItem);
 
         Order savedOrder = orderRepository.save(order);
+
+        /*
+         * 저장된 주문을 기준으로 결제를 생성한다.
+         *
+         * 결제 생성 중 예외가 발생하면
+         * OrderService의 트랜잭션도 함께 롤백된다.
+         */
+        paymentService.createPaymentForOrder(
+                savedOrder,
+                userId,
+                request.paymentMethod(),
+                idempotencyKey
+        );
 
         return OrderCreateResponseDto.from(savedOrder);
     }

@@ -1,5 +1,6 @@
 package com.sparta.spartachallenge8282.order.presentation.dto.request;
 
+import com.sparta.spartachallenge8282.payment.domain.PaymentMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -32,6 +33,10 @@ public record OrderCreateRequestDto(
         // 주문 상품 목록
         @Valid
         @NotEmpty(message = "주문 상품은 최소 1개 이상이어야 합니다.")
-        List<OrderItemRequestDto> orderItems
+        List<OrderItemRequestDto> orderItems,
+
+        // 주문과 동시에 생성할 결제 수단
+        @NotNull(message = "결제 수단은 필수입니다.")
+        PaymentMethod paymentMethod
 ) {
 }
