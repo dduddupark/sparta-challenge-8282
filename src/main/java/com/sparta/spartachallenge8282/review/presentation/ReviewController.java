@@ -2,6 +2,7 @@ package com.sparta.spartachallenge8282.review.presentation;
 
 
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.review.application.ReviewService;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
@@ -9,6 +10,7 @@ import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewUpda
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewResponseDto;
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewResultResponseDto;
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -23,9 +25,7 @@ import java.util.UUID;
 
 /**
  * 리뷰(Review) API.
- * 생성/수정/삭제는 @AuthenticationPrincipal로 로그인한 본인의 userId를 받는다.
- * 목록 조회(GET /stores/{storeId}/reviews)와 상세 조회(GET /reviews/{reviewId})는 인증 없이 누구나 접근 가능하다.
- * 목록 조회는 Slice 기반 페이징이며 기본값은 size=10, createdAt 내림차순이다.
+ * @AuthenticationPrincipal로 로그인한 본인의 userId를 받는다.
  */
 
 @RestController
@@ -51,19 +51,20 @@ public class ReviewController {
     }
 
     // 특정 가게의 리뷰 목록 조회 (페이징)
-    @GetMapping("/stores/{storeId}/reviews")
+    @GetMapping("/reviews")
     public ResponseEntity<ApiResponse<ReviewSliceResponseDto>> getReviewsByStore(
-            @PathVariable UUID storeId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam UUID storeId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        ReviewSliceResponseDto response = reviewService.getReviewsByStore(storeId, pageable);
-
+        Pageable normalized = PageableUtil.normalize(pageable);
+        ReviewSliceResponseDto response = reviewService.getReviewsByStore(storeId, normalized);
         return ResponseEntity.ok(ApiResponse.success("조회 성공", response));
     }
-
     // 리뷰 상세보기
     @GetMapping("/reviews/{reviewId}")
     public ResponseEntity<ApiResponse<ReviewResponseDto>> getReview(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PathVariable UUID reviewId) {
 
         ReviewResponseDto response = reviewService.getReview(reviewId);
@@ -90,7 +91,8 @@ public class ReviewController {
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
 
-        reviewService.deleteReview(reviewId, userDetails.userId(), userDetails.role());
+        UserRole role = UserRole.valueOf(userDetails.role().substring(5));
+        reviewService.deleteReview(reviewId, userDetails.userId(), role);
 
         return ResponseEntity.ok(ApiResponse.success("리뷰가 삭제되었습니다."));
     }

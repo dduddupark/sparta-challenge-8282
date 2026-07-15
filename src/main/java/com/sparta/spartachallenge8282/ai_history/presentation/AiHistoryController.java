@@ -1,11 +1,13 @@
 package com.sparta.spartachallenge8282.ai_history.presentation;
 
+import com.sparta.spartachallenge8282.ai_history.application.AiHistoryService;
 import com.sparta.spartachallenge8282.ai_history.presentation.dto.request.AiHistoryCreateRequestDto;
 import com.sparta.spartachallenge8282.ai_history.presentation.dto.response.AiHistoryItemResponseDto;
 import com.sparta.spartachallenge8282.ai_history.presentation.dto.response.AiHistoryResultResponseDto;
-import com.sparta.spartachallenge8282.ai_history.application.AiHistoryService;
 import com.sparta.spartachallenge8282.global.common.ApiResponse;
+import com.sparta.spartachallenge8282.global.common.PageableUtil;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
+import com.sparta.spartachallenge8282.user.domain.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -23,7 +25,8 @@ import java.util.UUID;
  *
  * 생성만 하는 /ai/menu-description과 생성 후 즉시 메뉴에 반영하는
  * /ai/menu-description/apply 두 가지 엔드포인트를 제공한다.
- * AiHistory 자체는 로그성 이력이라 생성 후 수정/삭제는 없다.
+ * AiHistory 자체는 로그성 이력이라 수정은 없으며,
+ * 삭제는 MANAGER/MASTER만 가능하다(로그 정리 목적).
  */
 
 @RestController
@@ -57,16 +60,18 @@ public class AiHistoryController {
      * 특정 메뉴의 AI 생성 이력을 최신순으로 조회한다.
      * 기본 페이지 크기 10, 생성일 내림차순 정렬.
      */
-    @GetMapping("/menus/{menuId}/ai-histories")
+    @GetMapping("/ai-histories")
     public ResponseEntity<ApiResponse<List<AiHistoryItemResponseDto>>> getAiHistories(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @PathVariable UUID menuId,
-            @PageableDefault(size = 10, sort = "createdAt" , direction = Sort.Direction.DESC)Pageable pageable
-            ) {
-        List<AiHistoryItemResponseDto> responses = aiHistoryService.getAiHistories(menuId, pageable);
+            @RequestParam UUID menuId,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Pageable normalized = PageableUtil.normalize(pageable);
+        UserRole role = UserRole.valueOf(userDetails.role().substring(5));
+        List<AiHistoryItemResponseDto> responses =
+                aiHistoryService.getAiHistories(menuId, normalized, userDetails.userId(), role);
         return ResponseEntity.ok(ApiResponse.success("조회 성공", responses));
     }
-
     /**
      * AI로 메뉴를 생성 후 자동으로 반영
      *
@@ -77,6 +82,20 @@ public class AiHistoryController {
             @Valid @RequestBody AiHistoryCreateRequestDto requestDto) {
         AiHistoryResultResponseDto response = aiHistoryService.createAiHistoryAndApply(requestDto, userDetails.userId());
         return ResponseEntity.ok(ApiResponse.success("AI 요청이 처리되고 메뉴에 반영되었습니다.", response));
+    }
+
+    /**
+     * AI 이력을 삭제한다. MANAGER/MASTER 전용.
+     */
+    @DeleteMapping("/ai-histories/{aiHistoryId}")
+    public ResponseEntity<ApiResponse<Void>> deleteAiHistory(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PathVariable UUID aiHistoryId) {
+
+        UserRole role = UserRole.valueOf(userDetails.role().substring(5));
+        aiHistoryService.deleteAiHistory(aiHistoryId, role);
+
+        return ResponseEntity.ok(ApiResponse.success("AI 이력이 삭제되었습니다."));
     }
 
 }

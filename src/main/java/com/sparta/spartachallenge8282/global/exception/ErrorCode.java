@@ -125,6 +125,7 @@ public enum ErrorCode {
     PROMPT_TOO_LONG(70001, HttpStatus.BAD_REQUEST, "프롬프트 글자수 제한을 초과했습니다."),
     NOT_MENU_OWNER(70002, HttpStatus.FORBIDDEN, "본인 메뉴가 아닙니다."),
     MENU_NOT_FOUND_FOR_AI(70003, HttpStatus.NOT_FOUND, "존재하지 않는 메뉴입니다."),
+    AI_HISTORY_NOT_FOUND(70004, HttpStatus.NOT_FOUND, "존재하지 않는 AI 이력입니다."),
 
     // ── REVIEW (80001 ~ 80100) ────────────────────────────────────────────────────
     REVIEW_INVALID_RATING(80001, HttpStatus.BAD_REQUEST, "평점은 1점에서 5점 사이여야 합니다."),
