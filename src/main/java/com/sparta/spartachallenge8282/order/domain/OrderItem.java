@@ -97,5 +97,9 @@ public class OrderItem extends BaseEntity {
         this.totalPrice =
                 (this.menuPrice + totalOptionPrice)
                         * this.quantity;
+    // 주문 상품에 선택한 옵션을 추가
+    public void addOption(OrderItemOption option) {
+        this.options.add(option);
+        option.assignOrderItem(this);
     }
 }

@@ -72,6 +72,8 @@ class OrderServiceTest {
     @Mock
     private MenuRepository menuRepository;
 
+
+
     /**
      * 선택한 메뉴 옵션 조회를 담당하는 가짜 Repository
      */
@@ -113,6 +115,7 @@ class OrderServiceTest {
                 menuRepository,
                 menuOptionRepository,
                 menuOptionGroupRepository
+                menuRepository
         );
 
         customerId = 1L;
