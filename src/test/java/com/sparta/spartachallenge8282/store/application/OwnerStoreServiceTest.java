@@ -967,6 +967,42 @@ class OwnerStoreServiceTest {
 
     }
 
+    @Nested
+    @DisplayName("메뉴 삭제로 인한 자동 전환 후 재활성화 시나리오")
+    class MenuLifecycleScenarioTest {
+
+        @Test
+        @DisplayName("마지막 메뉴 삭제로 PREPARING 전환 후, 메뉴 재등록 시 수동 활성화가 가능하다")
+        void refreshThenReactivate_scenario() {
+            // given: ACTIVE 상태에서 마지막 메뉴가 삭제된 상황
+            Store store = mockStore(StoreOperationStatus.ACTIVE);
+
+            when(storeRepository.findByIdAndDeletedAtIsNull(storeId))
+                    .thenReturn(Optional.of(store));
+            when(menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId))
+                    .thenReturn(false);
+
+            // when: 삭제로 인한 자동 전환
+            ownerStoreService.refreshOperationStatusByMenus(storeId);
+
+            // then: PREPARING으로 전환됨
+            verify(store).preparing();
+
+            // given: 이후 상태 조회 시 PREPARING으로 응답하도록 재설정
+            when(store.getOperationStatus()).thenReturn(StoreOperationStatus.PREPARING);
+            when(storeRepository.findByIdAndOwner_IdAndDeletedAtIsNull(storeId, ownerId))
+                    .thenReturn(Optional.of(store));
+            when(menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId))
+                    .thenReturn(true); // 메뉴 재등록됨
+
+            // when: 사장님이 수동 활성화
+            ownerStoreService.activateStore(storeId, ownerDetails);
+
+            // then: 다시 ACTIVE로 전환됨
+            verify(store).activate();
+        }
+    }
+
     private Store mockStore(
             StoreOperationStatus operationStatus
     ) {
