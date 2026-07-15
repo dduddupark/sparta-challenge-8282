@@ -333,6 +333,68 @@ class MenuServiceTest {
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
     }
 
+    // ── 숨김 상태 변경 ───────────────────────────────────────────────────────
+
+    @Test
+    void 메뉴노출상태변경_OWNER가_본인가게면_숨김과_노출을_변경한다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        givenStoreExists(storeId);
+        givenOwnerOwnsStore(storeId, owner.userId());
+
+        // when
+        MenuResponse hiddenResult = menuService.updateVisibility(id, true, owner);
+        MenuResponse shownResult = menuService.updateVisibility(id, false, owner);
+
+        // then
+        assertThat(hiddenResult.isHidden()).isTrue();
+        assertThat(shownResult.isHidden()).isFalse();
+    }
+
+    @Test
+    void 메뉴노출상태변경_OWNER가_본인가게가_아니면_NO_MENU_PERMISSION을_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.updateVisibility(id, true, owner));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_MENU_PERMISSION);
+    }
+
+    @Test
+    void 메뉴노출상태변경_CUSTOMER면_ACCESS_DENIED를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.updateVisibility(id, true, customerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ACCESS_DENIED);
+    }
+
     // ── 수정 ────────────────────────────────────────────────────────────────
 
     @Test

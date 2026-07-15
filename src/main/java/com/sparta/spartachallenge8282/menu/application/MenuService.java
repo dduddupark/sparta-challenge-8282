@@ -96,10 +96,46 @@ public class MenuService {
                                           MenuStatus status, MenuBadge badge, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // null 이면 전체 검색(LIKE '%%')
         Pageable normalizedPageable = PageableUtil.normalize(pageable);
-        // 공개 조회는 숨김 메뉴 제외(includeHidden=false).
-        // 후속 확장: OWNER/관리자용 숨김 포함 목록은 공개 조회 정책과 숨김 전환 API를 함께 정의한다.
+        // 공개 조회는 숨김 메뉴 제외(includeHidden=false). 숨김 포함 조회는 관리용 getManageMenuList 를 사용한다.
         return menuRepository.searchMenus(storeId, searchKeyword, status, badge, false, normalizedPageable)
                 .map(MenuResponse::from);
+    }
+
+    /**
+     * 관리용 메뉴 목록 검색 — 숨김 메뉴 포함. (GET /api/v1/stores/{storeId}/menus/manage)
+     *
+     * <p>공개 목록과 달리 인증 필수이며, OWNER 는 본인 가게만 조회할 수 있다
+     * (MANAGER/MASTER 는 전체 가게). 권한 검증은 쓰기 경로와 동일한 {@link #validateStoreAccess} 를 재사용한다.
+     */
+    public Page<MenuResponse> getManageMenuList(UUID storeId, String keyword,
+                                                MenuStatus status, MenuBadge badge,
+                                                Pageable pageable, UserDetailsImpl user) {
+        validateStoreAccess(storeId, user);
+
+        String searchKeyword = (keyword == null) ? "" : keyword;
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
+        return menuRepository.searchMenus(storeId, searchKeyword, status, badge, true, normalizedPageable)
+                .map(MenuResponse::from);
+    }
+
+    /**
+     * 메뉴 노출 상태 변경. (PATCH /api/v1/menus/{menuId}/visibility)
+     *
+     * <p>숨긴 메뉴를 다시 노출할 수 있어야 하므로 숨김 포함 조회를 사용한다.
+     */
+    @Transactional
+    public MenuResponse updateVisibility(UUID menuId, boolean hidden, UserDetailsImpl user) {
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(menuId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
+
+        validateStoreAccess(menu.getStoreId(), user);
+
+        if (hidden) {
+            menu.hide();
+        } else {
+            menu.show();
+        }
+        return MenuResponse.from(menu);   // 변경감지로 flush 되므로 save 불필요
     }
 
     /**

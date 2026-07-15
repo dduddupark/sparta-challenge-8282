@@ -9,6 +9,7 @@ import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuAiDescriptionUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
+import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuVisibilityUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuCreateResponse;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuDeleteResponse;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
@@ -77,6 +78,26 @@ public class MenuController {
         return ResponseEntity.ok(ApiResponse.success("메뉴 목록 조회 성공", data));
     }
 
+    /**
+     * 관리용 메뉴 목록 — 숨김 메뉴 포함.
+     *
+     * <p>공개 목록({@code /stores/{storeId}/menus})과 권한·노출 정책이 섞이지 않도록 경로를 분리했다.
+     * OWNER 는 본인 가게만(Service 에서 소유권 검증), MANAGER/MASTER 는 전체 가게 조회 가능.
+     */
+    @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
+    @GetMapping("/stores/{storeId}/menus/manage")
+    public ResponseEntity<ApiResponse<PageResponse<MenuResponse>>> getManageMenuList(
+            @PathVariable UUID storeId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) MenuStatus status,
+            @RequestParam(required = false) MenuBadge badge,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        PageResponse<MenuResponse> data = PageResponse.from(
+                menuService.getManageMenuList(storeId, keyword, status, badge, pageable, userDetails));
+        return ResponseEntity.ok(ApiResponse.success("관리용 메뉴 목록 조회 성공", data));
+    }
+
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
     @PatchMapping("/menus/{menuId}")
     public ResponseEntity<ApiResponse<MenuResponse>> updateMenu(
@@ -96,6 +117,18 @@ public class MenuController {
         return ResponseEntity.ok(
                 ApiResponse.success("AI 메뉴 설명 적용 완료",
                         menuService.applyAiDescription(menuId, request.description(), userDetails)));
+    }
+
+    /** 메뉴 노출 상태 변경. */
+    @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
+    @PatchMapping("/menus/{menuId}/visibility")
+    public ResponseEntity<ApiResponse<MenuResponse>> updateVisibility(
+            @PathVariable UUID menuId,
+            @Valid @RequestBody MenuVisibilityUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return ResponseEntity.ok(
+                ApiResponse.success("메뉴 노출 상태 변경 완료",
+                        menuService.updateVisibility(menuId, request.hidden(), userDetails)));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_OWNER','ROLE_MANAGER','ROLE_MASTER')")
