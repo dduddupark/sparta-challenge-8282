@@ -95,6 +95,7 @@ public enum ErrorCode {
     NO_OPTION_PERMISSION(42002, HttpStatus.FORBIDDEN, "옵션 관리 권한이 없습니다."),
     INVALID_OPTION_PRICE(42003, HttpStatus.BAD_REQUEST, "옵션 추가 금액은 0원 이상이어야 합니다."),
     ALREADY_DELETED_OPTION(42004, HttpStatus.CONFLICT, "이미 삭제된 옵션입니다."),
+    INVALID_MENU_OPTION(10501, HttpStatus.BAD_REQUEST, "현재 메뉴에서 선택할 수 없는 옵션입니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────

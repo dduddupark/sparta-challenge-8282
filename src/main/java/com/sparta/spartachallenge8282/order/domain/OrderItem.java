@@ -73,9 +73,31 @@ public class OrderItem extends BaseEntity {
         this.order = order;
     }
 
-    // 주문 상품에 선택한 옵션을 추가
+    /**
+     * 주문 상품에 선택한 옵션을 추가.
+     * 옵션 추가 후 주문 상품 총금액을 다시 계산.
+     */
     public void addOption(OrderItemOption option) {
         this.options.add(option);
         option.assignOrderItem(this);
+
+        recalculateTotalPrice();
     }
+    /**
+     * 메뉴 가격과 선택한 옵션 가격을 합산하여
+     * 주문 상품 총금액을 다시 계산한다.
+     * 계산식:
+     * (메뉴 가격 + 옵션 추가 금액 합계) × 수량
+     */
+    private void recalculateTotalPrice() {
+        int totalOptionPrice = options.stream()
+                .mapToInt(OrderItemOption::getAdditionalPrice)
+                .sum();
+
+        this.totalPrice =
+                (this.menuPrice + totalOptionPrice)
+                        * this.quantity;
+
+    }
+
 }
