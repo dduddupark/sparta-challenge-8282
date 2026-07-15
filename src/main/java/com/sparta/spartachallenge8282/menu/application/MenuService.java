@@ -15,6 +15,7 @@ import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupReposito
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
+import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class MenuService {
     private final MenuOptionGroupRepository optionGroupRepository;
     private final MenuOptionRepository optionRepository;
     private final StoreRepository storeRepository;
+    private final OwnerStoreService ownerStoreService;
 
     private static final String ROLE_OWNER = UserRole.OWNER.getAuthority();
     private static final String ROLE_MANAGER = UserRole.MANAGER.getAuthority();
@@ -156,6 +158,8 @@ public class MenuService {
             throw new CustomException(ErrorCode.ALREADY_DELETED_MENU);
         }
 
+        UUID storeId = menu.getStoreId();
+
         validateStoreAccess(menu.getStoreId(), user);
         optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)
                 .forEach(group -> {
@@ -164,6 +168,10 @@ public class MenuService {
                     group.softDelete(user.userId());
                 });
         menu.softDelete(user.userId());
+
+        //공개된 메뉴가 없다면 가게를 preparing 상태로 되돌린다.
+        ownerStoreService.refreshOperationStatusByMenus(storeId);
+
         return MenuDeleteResponse.from(menu);
     }
 
