@@ -4,6 +4,7 @@ import com.sparta.spartachallenge8282.global.common.ApiResponse;
 import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.store.application.StoreService;
 import com.sparta.spartachallenge8282.store.domain.StoreApplicationStatus;
+import com.sparta.spartachallenge8282.store.presentation.dto.request.StoresSearchCondition;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.AdminStoreApplicationListResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.UserStoreDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.UserStoreListResponse;
@@ -25,9 +26,10 @@ public class StoreController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<UserStoreListResponse>>> getStores(
+            @ModelAttribute StoresSearchCondition condition,
             @PageableDefault(size = 20) Pageable pageable
     ){
-       PageResponse<UserStoreListResponse> response = storeService.getStores(pageable);
+       PageResponse<UserStoreListResponse> response = storeService.getStores(condition, pageable);
         return ResponseEntity.ok(ApiResponse.success("가게 목록 조회 성공", response));
     }
 

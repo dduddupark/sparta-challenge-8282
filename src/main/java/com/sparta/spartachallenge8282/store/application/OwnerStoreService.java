@@ -74,7 +74,7 @@ public class OwnerStoreService {
             throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);
         }
 
-        boolean hasMenu = menuRepository.existsByStoreIdAndDeletedAtIsNull(storeId);
+        boolean hasMenu = menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId);
         if(!hasMenu) {
             throw new CustomException(ErrorCode.STORE_MENU_REQUIRED);
         }

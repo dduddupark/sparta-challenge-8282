@@ -2,7 +2,7 @@ package com.sparta.spartachallenge8282.menu.domain;
 
 import java.util.UUID;
 
-public interface MenuPreviewProjection {
+public interface PreviewMenuProjection {
     UUID getMenuId();
 
     UUID getStoreId();
@@ -10,5 +10,7 @@ public interface MenuPreviewProjection {
     String getName();
 
     Integer getPrice();
+
+    Integer getSortOrder();
 
 }

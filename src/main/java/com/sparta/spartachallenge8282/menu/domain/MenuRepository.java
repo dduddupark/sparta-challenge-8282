@@ -36,10 +36,53 @@ public interface MenuRepository extends JpaRepository<Menu, UUID> {
                            @Param("includeHidden") boolean includeHidden,
                            Pageable pageable);
 
+
+    /**
+     * 각 가게의 sortOrder 정렬에서 상위 3개의 메뉴를 가게 목록과 같이 조회한다.
+     */
+    @Query(value = """
+        SELECT
+            ranked.store_id  AS storeId,
+            ranked.menu_id   AS menuId,
+            ranked.name      AS name,
+            ranked.price     AS price,
+            ranked.sort_order AS sortOrder
+        FROM (
+            SELECT
+                m.store_id,
+                m.id AS menu_id,
+                m.name,
+                m.price,
+                m.sort_order,
+                ROW_NUMBER() OVER (
+                    PARTITION BY m.store_id
+                    ORDER BY
+                        m.sort_order,
+                        m.id
+                ) AS row_num
+            FROM p_menu m
+            WHERE m.deleted_at IS NULL
+              AND m.is_hidden = false
+              AND m.store_id IN (:storeIds)
+        ) ranked
+        WHERE ranked.row_num <= 3
+        ORDER BY
+            ranked.store_id,
+            ranked.sort_order,
+            ranked.menu_id
+        """,
+            nativeQuery = true)
+    List<PreviewMenuProjection> findTop3MenusByStoreIds(
+            @Param("storeIds") List<UUID> storeIds
+    );
+
+
+
+
     /**
      * STORE
      * 가게 활성화 조건
-     * 가게에 매뉴 1개이상 존재
+     * 가게에 매뉴 1개이상 존재 / 숨겨진 메뉴는 포함하지 않는다.
      */
-    boolean existsByStoreIdAndDeletedAtIsNull(UUID storeId);
+    boolean existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(UUID storeId);
 }

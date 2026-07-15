@@ -213,15 +213,21 @@ class AiHistoryServiceTest {
     }
 
     @Test
-    @DisplayName("AI 히스토리 조회 성공")
+    @DisplayName("AI 히스토리 조회 성공 (OWNER 본인 조회)")
     void getAiHistoriesTest() {
         // given
-        UUID menuId = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        Long ownerId = 1L;
+
+        Menu menu = createMenu(storeId);
+        User owner = createOwner(ownerId);
+        Store store = createStore(owner, storeId);
+
         Pageable pageable = PageRequest.of(0, 10);
 
         AiHistory history = AiHistory.builder()
-                .menuId(menuId)
-                .requestedBy(1L)
+                .menuId(menu.getId())
+                .requestedBy(ownerId)
                 .prompt("자동 생성 프롬프트")
                 .response("맛있는 메뉴입니다.")
                 .isSuccess(true)
@@ -229,11 +235,13 @@ class AiHistoryServiceTest {
 
         Slice<AiHistory> slice = new SliceImpl<>(List.of(history), pageable, false);
 
-        when(aiHistoryRepository.findByMenuId(menuId, pageable)).thenReturn(slice);
+        when(menuRepository.findById(menu.getId())).thenReturn(Optional.of(menu));
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+        when(aiHistoryRepository.findByMenuId(menu.getId(), pageable)).thenReturn(slice);
 
         // when
-        List<AiHistoryItemResponseDto> result = aiHistoryService.getAiHistories(menuId, pageable);
-        System.out.println("결과: " + result);
+        List<AiHistoryItemResponseDto> result =
+                aiHistoryService.getAiHistories(menu.getId(), pageable, ownerId, UserRole.OWNER);
 
         // then
         assertThat(result).isNotNull();
@@ -241,18 +249,76 @@ class AiHistoryServiceTest {
     }
 
     @Test
+    @DisplayName("AI 히스토리 조회 성공 (MANAGER는 타인 가게도 조회 가능)")
+    void getAiHistoriesTest_managerAccess() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Long ownerId = 1L;
+        Long managerId = 999L;
+
+        Menu menu = createMenu(storeId);
+        User owner = createOwner(ownerId);
+        Store store = createStore(owner, storeId);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Slice<AiHistory> slice = new SliceImpl<>(List.of(), pageable, false);
+
+        when(menuRepository.findById(menu.getId())).thenReturn(Optional.of(menu));
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+        when(aiHistoryRepository.findByMenuId(menu.getId(), pageable)).thenReturn(slice);
+
+        // when
+        List<AiHistoryItemResponseDto> result =
+                aiHistoryService.getAiHistories(menu.getId(), pageable, managerId, UserRole.MANAGER);
+
+        // then
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("AI 히스토리 조회 실패: 본인 가게도 아니고 MANAGER/MASTER도 아님")
+    void getAiHistoriesTest_fail_access_denied() {
+        // given
+        UUID storeId = UUID.randomUUID();
+        Long ownerId = 1L;
+        Long otherUserId = 999L;
+
+        Menu menu = createMenu(storeId);
+        User owner = createOwner(ownerId);
+        Store store = createStore(owner, storeId);
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(menuRepository.findById(menu.getId())).thenReturn(Optional.of(menu));
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+
+        // when & then
+        assertThatThrownBy(() ->
+                aiHistoryService.getAiHistories(menu.getId(), pageable, otherUserId, UserRole.CUSTOMER))
+                .isInstanceOf(CustomException.class)
+                .satisfies(this::printException);
+    }
+    @Test
     @DisplayName("AI 히스토리 조회: 이력 없음 (빈 리스트)")
     void getAiHistoriesTest_empty() {
         // given
-        UUID menuId = UUID.randomUUID();
-        Pageable pageable = PageRequest.of(0, 10);
+        UUID storeId = UUID.randomUUID();
+        Long ownerId = 1L;
 
+        Menu menu = createMenu(storeId);
+        User owner = createOwner(ownerId);
+        Store store = createStore(owner, storeId);
+
+        Pageable pageable = PageRequest.of(0, 10);
         Slice<AiHistory> emptySlice = new SliceImpl<>(List.of(), pageable, false);
 
-        when(aiHistoryRepository.findByMenuId(menuId, pageable)).thenReturn(emptySlice);
+        when(menuRepository.findById(menu.getId())).thenReturn(Optional.of(menu));
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+        when(aiHistoryRepository.findByMenuId(menu.getId(), pageable)).thenReturn(emptySlice);
 
         // when
-        List<AiHistoryItemResponseDto> result = aiHistoryService.getAiHistories(menuId, pageable);
+        List<AiHistoryItemResponseDto> result =
+                aiHistoryService.getAiHistories(menu.getId(), pageable, ownerId, UserRole.OWNER);
         System.out.println("결과: " + result);
 
         // then
@@ -396,6 +462,85 @@ class AiHistoryServiceTest {
 
         // when & then
         assertThatThrownBy(() -> aiHistoryService.createAiHistoryAndApply(requestDto, otherUserId))
+                .isInstanceOf(CustomException.class)
+                .satisfies(this::printException);
+    }
+
+    // ── deleteAiHistory ──────────────────────────────────────────
+
+    @Test
+    @DisplayName("AI 이력 삭제 성공: MANAGER 권한")
+    void deleteAiHistoryTest_manager_success() {
+        // given
+        UUID aiHistoryId = UUID.randomUUID();
+
+        AiHistory aiHistory = AiHistory.builder()
+                .menuId(UUID.randomUUID())
+                .requestedBy(1L)
+                .prompt("프롬프트")
+                .response("응답")
+                .isSuccess(true)
+                .build();
+        ReflectionTestUtils.setField(aiHistory, "id", aiHistoryId);
+
+        when(aiHistoryRepository.findById(aiHistoryId)).thenReturn(Optional.of(aiHistory));
+
+        // when
+        aiHistoryService.deleteAiHistory(aiHistoryId, UserRole.MANAGER);
+
+        // then
+        org.mockito.Mockito.verify(aiHistoryRepository, org.mockito.Mockito.times(1)).delete(aiHistory);
+    }
+
+    @Test
+    @DisplayName("AI 이력 삭제 성공: MASTER 권한")
+    void deleteAiHistoryTest_master_success() {
+        // given
+        UUID aiHistoryId = UUID.randomUUID();
+
+        AiHistory aiHistory = AiHistory.builder()
+                .menuId(UUID.randomUUID())
+                .requestedBy(1L)
+                .prompt("프롬프트")
+                .response("응답")
+                .isSuccess(true)
+                .build();
+        ReflectionTestUtils.setField(aiHistory, "id", aiHistoryId);
+
+        when(aiHistoryRepository.findById(aiHistoryId)).thenReturn(Optional.of(aiHistory));
+
+        // when
+        aiHistoryService.deleteAiHistory(aiHistoryId, UserRole.MASTER);
+
+        // then
+        org.mockito.Mockito.verify(aiHistoryRepository, org.mockito.Mockito.times(1)).delete(aiHistory);
+    }
+
+    @Test
+    @DisplayName("AI 이력 삭제 실패: OWNER/CUSTOMER는 권한 없음")
+    void deleteAiHistoryTest_fail_access_denied() {
+        // given
+        UUID aiHistoryId = UUID.randomUUID();
+
+        // when & then
+        assertThatThrownBy(() -> aiHistoryService.deleteAiHistory(aiHistoryId, UserRole.OWNER))
+                .isInstanceOf(CustomException.class)
+                .satisfies(this::printException);
+
+        // 권한 체크에서 먼저 막히므로 Repository는 조회조차 안 되어야 한다
+        org.mockito.Mockito.verify(aiHistoryRepository, org.mockito.Mockito.never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("AI 이력 삭제 실패: 이력 없음")
+    void deleteAiHistoryTest_fail_not_found() {
+        // given
+        UUID aiHistoryId = UUID.randomUUID();
+
+        when(aiHistoryRepository.findById(aiHistoryId)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> aiHistoryService.deleteAiHistory(aiHistoryId, UserRole.MASTER))
                 .isInstanceOf(CustomException.class)
                 .satisfies(this::printException);
     }

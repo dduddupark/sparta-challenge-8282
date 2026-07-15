@@ -1,4 +1,4 @@
-package com.sparta.spartachallenge8282.review_reply.presentation.dto;
+package com.sparta.spartachallenge8282.review_reply.presentation.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
