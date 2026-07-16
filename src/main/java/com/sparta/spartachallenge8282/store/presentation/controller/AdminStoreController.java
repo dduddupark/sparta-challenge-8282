@@ -55,7 +55,7 @@ public class AdminStoreController {
     /**
      * 등록 신청된 가게 상세 조회
      */
-    @GetMapping("/{applicationId}")
+    @GetMapping("/applications/{applicationId}")
     public ResponseEntity<ApiResponse<AdminStoreApplicationDetailResponse>> getStoreApplication(
             @PathVariable UUID applicationId
     ){
@@ -67,7 +67,7 @@ public class AdminStoreController {
     /**
      * 가게 등록 신청 승인
      */
-    @PatchMapping("/{applicationId}/approve")
+    @PatchMapping("/applications/{applicationId}/approve")
     public ResponseEntity<ApiResponse<StoreApplicationProcessResponse>> approveStore(
             @PathVariable UUID applicationId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
@@ -79,16 +79,31 @@ public class AdminStoreController {
     }
 
     /**
+     * 가게 등록 신청 거절
+     */
+    @PatchMapping("/applications/{applicationId}/reject")
+    public ResponseEntity<ApiResponse<StoreApplicationProcessResponse>> rejectStore(
+            @PathVariable UUID applicationId,
+            @Valid @RequestBody StoreRejectRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        StoreApplicationProcessResponse response = adminStoreService.rejectStore(applicationId, request, userDetails);
+        return ResponseEntity.ok(ApiResponse.success("가게 등록 거절 성공", response));
+    }
+
+
+
+    /**
      * 승인된 가게 목록 조회
      *
      * 승인된 가게의 영업 상태별로 조회 가능
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<OwnerStoreListResponse>>> getStores(
+    public ResponseEntity<ApiResponse<PageResponse<AdminStoreListResponse>>> getStores(
             @RequestParam(required = false) StoreOperationStatus status,
             @PageableDefault(size = 20) Pageable pageable
     ){
-        PageResponse<OwnerStoreListResponse> response =
+        PageResponse<AdminStoreListResponse> response =
                 adminStoreService.getStores(
                         status,
                         pageable
@@ -101,24 +116,11 @@ public class AdminStoreController {
      * 가게 상세 조회
      */
     @GetMapping("/{storeId}")
-    public ResponseEntity<ApiResponse<OwnerStoreDetailResponse>> getStore(
+    public ResponseEntity<ApiResponse<AdminStoreDetailResponse>> getStore(
             @PathVariable UUID storeId
     ){
-        OwnerStoreDetailResponse response = adminStoreService.getStore(storeId);
+        AdminStoreDetailResponse response = adminStoreService.getStore(storeId);
         return ResponseEntity.ok(ApiResponse.success("관리 중인 가게 상세 조회 성공", response));
-    }
-
-    /**
-     * 가게 등록 신청 거절
-     */
-    @PatchMapping("/{applicationId}/reject")
-    public ResponseEntity<ApiResponse<StoreApplicationProcessResponse>> rejectStore(
-            @PathVariable UUID applicationId,
-            @Valid @RequestBody StoreRejectRequest request,
-            @AuthenticationPrincipal UserDetailsImpl userDetails
-    ) {
-        StoreApplicationProcessResponse response = adminStoreService.rejectStore(applicationId, request, userDetails);
-        return ResponseEntity.ok(ApiResponse.success("가게 등록 거절 성공", response));
     }
 
 

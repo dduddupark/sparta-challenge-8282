@@ -5,6 +5,7 @@ import com.sparta.spartachallenge8282.global.common.PageResponse;
 import com.sparta.spartachallenge8282.global.security.UserDetailsImpl;
 import com.sparta.spartachallenge8282.store.application.StoreApplicationService;
 import com.sparta.spartachallenge8282.store.application.StoreService;
+import com.sparta.spartachallenge8282.store.domain.StoreApplicationStatus;
 import com.sparta.spartachallenge8282.store.presentation.dto.request.StoreApplicationRequest;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationDetailResponse;
 import com.sparta.spartachallenge8282.store.presentation.dto.response.MyStoreApplicationListResponse;
@@ -50,10 +51,11 @@ public class StoreApplicationController {
      */
     @GetMapping("/my")
     public ResponseEntity<ApiResponse<PageResponse<MyStoreApplicationListResponse>>> getMyApplications(
+            @RequestParam(required = false) StoreApplicationStatus status,
             @AuthenticationPrincipal UserDetailsImpl user,
             @PageableDefault(size = 20) Pageable pageable
     ){
-      PageResponse<MyStoreApplicationListResponse> response = storeApplicationService.getMyStoreApplications(user, pageable);
+      PageResponse<MyStoreApplicationListResponse> response = storeApplicationService.getMyStoreApplications(user, pageable, status);
         return ResponseEntity.ok(ApiResponse.success("등록 현황 목록 조회 성공", response));
     }
 

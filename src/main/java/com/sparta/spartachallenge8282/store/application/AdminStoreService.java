@@ -58,16 +58,17 @@ public class AdminStoreService {
      * 등록 승인되어 관리되는 가게 목록 조회
      */
     @Transactional(readOnly = true)
-    public PageResponse<OwnerStoreListResponse> getStores(StoreOperationStatus status, Pageable pageable) {
+    public PageResponse<AdminStoreListResponse> getStores(StoreOperationStatus status, Pageable pageable) {
           Page<Store> stores;
 
+
           if(status == null){
-            stores = storeRepository.findAllByDeletedAtIsNull(pageable);
+              stores = storeRepository.findAll(pageable); //관리자는 삭제된 가게도 조회
           }else{
-            stores = storeRepository.findAllByOperationStatusAndDeletedAtIsNull(status, pageable);
+              stores = storeRepository.findAllByOperationStatus(status, pageable);
 
           }
-        return PageResponse.from(stores.map(OwnerStoreListResponse::from));
+        return PageResponse.from(stores.map(AdminStoreListResponse::from));
 
 
     }
@@ -76,13 +77,13 @@ public class AdminStoreService {
      * 등록 승인되어 관리되는 가게 상세 조회
      */
     @Transactional(readOnly = true)
-    public OwnerStoreDetailResponse getStore(UUID storeId) {
+    public AdminStoreDetailResponse getStore(UUID storeId) {
         Store store = storeRepository
-                .findByIdAndDeletedAtIsNull(storeId)
+                .findById(storeId)
                 .orElseThrow(()->
                         new CustomException(ErrorCode.STORE_NOT_FOUND)
                 );
-        return OwnerStoreDetailResponse.from(store);
+        return AdminStoreDetailResponse.from(store);
 
     }
 

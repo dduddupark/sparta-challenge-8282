@@ -12,8 +12,11 @@ import java.util.UUID;
 
 public interface MenuRepository extends JpaRepository<Menu, UUID> {
 
-    /** 단건 조회/수정 시: 삭제되지 않은 메뉴만. */
+    /** 관리 경로에서 사용하는 메뉴 조회. 숨김 메뉴도 대상이다. */
     Optional<Menu> findByIdAndDeletedAtIsNull(UUID id);
+
+    /** 공개 단건 조회용. 삭제되었거나 숨김 처리된 메뉴는 조회하지 않는다. */
+    Optional<Menu> findByIdAndDeletedAtIsNullAndIsHiddenFalse(UUID id);
 
     // 삭제 시에는 "없는 것"과 "이미 삭제된 것"을 구분하기 위해 JpaRepository 기본 findById(삭제 포함)를 그대로 쓴다.
 
@@ -36,10 +39,53 @@ public interface MenuRepository extends JpaRepository<Menu, UUID> {
                            @Param("includeHidden") boolean includeHidden,
                            Pageable pageable);
 
+
+    /**
+     * 각 가게의 sortOrder 정렬에서 상위 3개의 메뉴를 가게 목록과 같이 조회한다.
+     */
+    @Query(value = """
+        SELECT
+            ranked.store_id  AS storeId,
+            ranked.menu_id   AS menuId,
+            ranked.name      AS name,
+            ranked.price     AS price,
+            ranked.sort_order AS sortOrder
+        FROM (
+            SELECT
+                m.store_id,
+                m.id AS menu_id,
+                m.name,
+                m.price,
+                m.sort_order,
+                ROW_NUMBER() OVER (
+                    PARTITION BY m.store_id
+                    ORDER BY
+                        m.sort_order,
+                        m.id
+                ) AS row_num
+            FROM p_menu m
+            WHERE m.deleted_at IS NULL
+              AND m.is_hidden = false
+              AND m.store_id IN (:storeIds)
+        ) ranked
+        WHERE ranked.row_num <= 3
+        ORDER BY
+            ranked.store_id,
+            ranked.sort_order,
+            ranked.menu_id
+        """,
+            nativeQuery = true)
+    List<PreviewMenuProjection> findTop3MenusByStoreIds(
+            @Param("storeIds") List<UUID> storeIds
+    );
+
+
+
+
     /**
      * STORE
      * 가게 활성화 조건
-     * 가게에 매뉴 1개이상 존재
+     * 가게에 매뉴 1개이상 존재 / 숨겨진 메뉴는 포함하지 않는다.
      */
-    boolean existsByStoreIdAndDeletedAtIsNull(UUID storeId);
+    boolean existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(UUID storeId);
 }

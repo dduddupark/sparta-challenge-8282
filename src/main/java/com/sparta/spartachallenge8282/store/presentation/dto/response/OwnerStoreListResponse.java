@@ -14,6 +14,9 @@ public record OwnerStoreListResponse(
         UUID categoryId,
         String categoryName,
 
+        UUID regionId,
+        String regionName,
+
         String address,
 
         BigDecimal storeRating,
@@ -30,6 +33,9 @@ public record OwnerStoreListResponse(
 
                 store.getCategory().getId(),
                 store.getCategory().getName(),
+
+                store.getRegion().getId(),
+                store.getRegion().getName(),
 
                 store.getAddress(),
 

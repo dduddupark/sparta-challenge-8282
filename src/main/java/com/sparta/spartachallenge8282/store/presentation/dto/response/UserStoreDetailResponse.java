@@ -12,8 +12,11 @@ public record UserStoreDetailResponse(
         String storeName,
         String storeImage,
 
+        UUID categoryId,
         String categoryName,
+        UUID regionId,
         String regionName,
+
 
         String address,
         String storeTel,
@@ -38,7 +41,9 @@ public record UserStoreDetailResponse(
                 store.getStoreName(),
                 store.getStoreImage(),
 
+                store.getCategory().getId(),
                 store.getCategory().getName(),
+                store.getRegion().getId(),
                 store.getRegion().getName(),
 
                 store.getAddress(),

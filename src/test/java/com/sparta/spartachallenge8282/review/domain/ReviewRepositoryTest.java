@@ -1,6 +1,7 @@
 package com.sparta.spartachallenge8282.review.domain;
 
 import com.sparta.spartachallenge8282.global.config.JpaAuditingConfig;
+import com.sparta.spartachallenge8282.global.config.QueryDslConfig;
 import com.sparta.spartachallenge8282.review.presentation.dto.request.ReviewCreateRequestDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,8 +19,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest   // JPA 관련 빈만 로드, 인메모리 DB(H2) 사용, 각 테스트 후 롤백
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(JpaAuditingConfig.class)
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)@Import({
+        JpaAuditingConfig.class,
+        QueryDslConfig.class
+})
 class ReviewRepositoryTest {
 
     @Autowired

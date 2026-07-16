@@ -72,7 +72,7 @@ public class MenuOptionGroupService {
                 .sortOrder(request.sortOrder())
                 .isActive(request.isActive())
                 .build();
-        validateSelectRange(group.getMinSelect(), group.getMaxSelect());
+        validateSelectRange(group.isRequired(), group.getMinSelect(), group.getMaxSelect());
 
         return MenuOptionGroupCreateResponse.from(optionGroupRepository.save(group));
     }
@@ -112,7 +112,7 @@ public class MenuOptionGroupService {
         group.updateInfo(request.name(), request.minSelect(), request.maxSelect(), request.sortOrder());
         group.changeRequired(request.isRequired());
         group.changeActive(request.isActive());
-        validateSelectRange(group.getMinSelect(), group.getMaxSelect());   // 최종 값으로 검증(실패 시 트랜잭션 롤백)
+        validateSelectRange(group.isRequired(), group.getMinSelect(), group.getMaxSelect());   // 최종 값으로 검증(실패 시 트랜잭션 롤백)
 
         return MenuOptionGroupResponse.from(group);
     }
@@ -153,8 +153,12 @@ public class MenuOptionGroupService {
                 .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
     }
 
-    private void validateSelectRange(int minSelect, int maxSelect) {
+    /** 선택 범위 검증. 필수 그룹은 최소 1개 이상 선택되어야 한다. */
+    private void validateSelectRange(boolean isRequired, int minSelect, int maxSelect) {
         if (minSelect > maxSelect) {
+            throw new CustomException(ErrorCode.INVALID_OPTION_SELECT_RANGE);
+        }
+        if (isRequired && minSelect < 1) {
             throw new CustomException(ErrorCode.INVALID_OPTION_SELECT_RANGE);
         }
     }

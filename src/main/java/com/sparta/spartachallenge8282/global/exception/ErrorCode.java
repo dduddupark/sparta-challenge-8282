@@ -64,6 +64,7 @@ public enum ErrorCode {
     STORE_CLOSE_ALREADY_REQUESTED(20012, HttpStatus.CONFLICT, "이미 삭제 요청된 가게입니다."),
     STORE_ALREADY_CLOSED(20013, HttpStatus.CONFLICT, "이미 삭제 처리된 가게입니다."),
     STORE_CLOSE_NOT_REQUESTED(20014, HttpStatus.CONFLICT, "삭제 요청된 가게만 폐점 승인할 수 있습니다."),
+    STORE_STATUS_NOT_ALLOWED(20015, HttpStatus.BAD_REQUEST, "조회할 수 없는 가게 상태입니다."),
 
     // ── Category (30001 ~ 30999) ──────────────────────────────────────────────
     CATEGORY_NOT_FOUND(30001, HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
@@ -95,6 +96,7 @@ public enum ErrorCode {
     NO_OPTION_PERMISSION(42002, HttpStatus.FORBIDDEN, "옵션 관리 권한이 없습니다."),
     INVALID_OPTION_PRICE(42003, HttpStatus.BAD_REQUEST, "옵션 추가 금액은 0원 이상이어야 합니다."),
     ALREADY_DELETED_OPTION(42004, HttpStatus.CONFLICT, "이미 삭제된 옵션입니다."),
+    INVALID_MENU_OPTION(10501, HttpStatus.BAD_REQUEST, "현재 메뉴에서 선택할 수 없는 옵션입니다."),
 
 
     // ── Order (50001 ~ 59999) ─────────────────────────────────────────────────
@@ -118,6 +120,7 @@ public enum ErrorCode {
     PAYMENT_USER_NOT_FOUND(60009, HttpStatus.NOT_FOUND, "존재하지 않는 유저입니다."),
     PAYMENT_IDEMPOTENCY_KEY_CONFLICT(60010, HttpStatus.CONFLICT, "동일한 멱등키로 다른 결제 요청이 접수되었습니다."),
     PAYMENT_ORDER_NOT_PAYABLE(60011, HttpStatus.CONFLICT, "결제할 수 없는 주문 상태입니다."),
+    PAYMENT_NOT_COMPLETED(60012, HttpStatus.BAD_REQUEST, "결제가 완료되지 않은 주문입니다. 주문을 수락할 수 없습니다."),
 
 
     // ── AI (70001 ~ 79999) ────────────────────────────────────────────────────

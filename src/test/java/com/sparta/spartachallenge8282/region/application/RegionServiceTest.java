@@ -10,6 +10,7 @@ import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionCre
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionDeleteResponse;
 import com.sparta.spartachallenge8282.region.presentation.dto.response.RegionResponse;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,8 +20,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -56,7 +60,7 @@ class RegionServiceTest {
                 .name("광화문").sortOrder(1).isActive(true).isServiceAvailable(false)
                 .build();
         ReflectionTestUtils.setField(saved, "id", generatedId);
-        given(regionRepository.save(any(Region.class))).willReturn(saved);
+        given(regionRepository.saveAndFlush(any(Region.class))).willReturn(saved);
 
         // when
         RegionCreateResponse result = regionService.createRegion(request);
@@ -78,7 +82,23 @@ class RegionServiceTest {
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_REGION_NAME);
 
-        verify(regionRepository, never()).save(any());   // save가 호출되지 않았는지 확인
+        verify(regionRepository, never()).saveAndFlush(any());   // save가 호출되지 않았는지 확인
+    }
+
+    @Test
+    void 지역생성_DB동시성충돌이면_DUPLICATE_REGION_NAME을_던진다() {
+        // given: 사전 조회 뒤 다른 트랜잭션이 같은 이름을 먼저 INSERT 한 상황
+        RegionCreateRequest request = new RegionCreateRequest("광화문", 1, true, false);
+        given(regionRepository.existsByNameAndDeletedAtIsNull("광화문")).willReturn(false);
+        given(regionRepository.saveAndFlush(any(Region.class)))
+                .willThrow(uniqueIndexViolation("uk_region_name_active"));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> regionService.createRegion(request));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_REGION_NAME);
     }
 
     @Test
@@ -220,6 +240,29 @@ class RegionServiceTest {
     }
 
     @Test
+    void 지역수정_DB동시성충돌이면_DUPLICATE_REGION_NAME을_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        Region region = Region.builder()
+                .name("광화문").sortOrder(1).isActive(true).isServiceAvailable(false)
+                .build();
+        ReflectionTestUtils.setField(region, "id", id);
+        RegionUpdateRequest request = new RegionUpdateRequest("종로", null, null, null);
+
+        given(regionRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(region));
+        given(regionRepository.existsByNameAndDeletedAtIsNull("종로")).willReturn(false);
+        doThrow(uniqueIndexViolation("uk_region_name_active"))
+                .when(regionRepository).flush();
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> regionService.updateRegion(id, request));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DUPLICATE_REGION_NAME);
+    }
+
+    @Test
     void 지역삭제_성공하면_deletedAt을_반환하고_엔티티가_소프트삭제된다() {
         // given
         UUID id = UUID.randomUUID();
@@ -296,6 +339,21 @@ class RegionServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ALREADY_DELETED_REGION);
+    }
+
+    /**
+     * DB 인덱스를 직접 생성하는 메서드가 아니라, PostgreSQL unique index 충돌 시 만들어지는
+     * Spring {@link DataIntegrityViolationException} → Hibernate {@link ConstraintViolationException}
+     * 예외 체인을 단위 테스트에서 재현하는 헬퍼다.
+     *
+     * <p>전달한 제약조건 이름을 Hibernate 예외에 넣어 Service가 해당 인덱스 충돌만
+     * {@code DUPLICATE_REGION_NAME}으로 변환하는지 검증한다. 실제 DB 제약조건 동작은
+     * {@link RegionNamePolicyTest}에서 별도로 확인한다.
+     */
+    private static DataIntegrityViolationException uniqueIndexViolation(String constraintName) {
+        ConstraintViolationException cause = new ConstraintViolationException(
+                "duplicate key", new SQLException(), "insert into p_region", constraintName);
+        return new DataIntegrityViolationException("constraint violation", cause);
     }
 
 }

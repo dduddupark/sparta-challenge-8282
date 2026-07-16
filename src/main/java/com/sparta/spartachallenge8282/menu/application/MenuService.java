@@ -11,10 +11,12 @@ import com.sparta.spartachallenge8282.menu.domain.MenuStatus;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuCreateResponse;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuDeleteResponse;
 import com.sparta.spartachallenge8282.option.domain.MenuOptionRepository;
+import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroup;
 import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupRepository;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
+import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,6 +50,7 @@ public class MenuService {
     private final MenuOptionGroupRepository optionGroupRepository;
     private final MenuOptionRepository optionRepository;
     private final StoreRepository storeRepository;
+    private final OwnerStoreService ownerStoreService;
 
     private static final String ROLE_OWNER = UserRole.OWNER.getAuthority();
     private static final String ROLE_MANAGER = UserRole.MANAGER.getAuthority();
@@ -79,10 +83,10 @@ public class MenuService {
         return MenuCreateResponse.from(menuRepository.save(menu));
     }
 
-    /** 메뉴 단건 조회. */
+    /** 메뉴 단건 조회. (공개 — 숨김 메뉴 제외) */
     public MenuResponse getMenu(UUID id) {
-        // order 접점: 주문 생성 시 order 도메인이 메뉴 유효성(존재·가게 일치·숨김 여부)을 확인할 때 이 조회를 재사용할 수 있다.
-        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(id)
+        // 공개 조회는 숨김 메뉴를 노출하지 않는다.
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
         return MenuResponse.from(menu);
     }
@@ -92,10 +96,46 @@ public class MenuService {
                                           MenuStatus status, MenuBadge badge, Pageable pageable) {
         String searchKeyword = (keyword == null) ? "" : keyword;   // null 이면 전체 검색(LIKE '%%')
         Pageable normalizedPageable = PageableUtil.normalize(pageable);
-        // 공개 조회는 숨김 메뉴 제외(includeHidden=false).
-        // 후속 확장: OWNER/관리자용 숨김 포함 목록은 공개 조회 정책과 숨김 전환 API를 함께 정의한다.
+        // 공개 조회는 숨김 메뉴 제외(includeHidden=false). 숨김 포함 조회는 관리용 getManageMenuList 를 사용한다.
         return menuRepository.searchMenus(storeId, searchKeyword, status, badge, false, normalizedPageable)
                 .map(MenuResponse::from);
+    }
+
+    /**
+     * 관리용 메뉴 목록 검색 — 숨김 메뉴 포함. (GET /api/v1/stores/{storeId}/menus/manage)
+     *
+     * <p>공개 목록과 달리 인증 필수이며, OWNER 는 본인 가게만 조회할 수 있다
+     * (MANAGER/MASTER 는 전체 가게). 권한 검증은 쓰기 경로와 동일한 {@link #validateStoreAccess} 를 재사용한다.
+     */
+    public Page<MenuResponse> getManageMenuList(UUID storeId, String keyword,
+                                                MenuStatus status, MenuBadge badge,
+                                                Pageable pageable, UserDetailsImpl user) {
+        validateStoreAccess(storeId, user);
+
+        String searchKeyword = (keyword == null) ? "" : keyword;
+        Pageable normalizedPageable = PageableUtil.normalize(pageable);
+        return menuRepository.searchMenus(storeId, searchKeyword, status, badge, true, normalizedPageable)
+                .map(MenuResponse::from);
+    }
+
+    /**
+     * 메뉴 노출 상태 변경. (PATCH /api/v1/menus/{menuId}/visibility)
+     *
+     * <p>숨긴 메뉴를 다시 노출할 수 있어야 하므로 숨김 포함 조회를 사용한다.
+     */
+    @Transactional
+    public MenuResponse updateVisibility(UUID menuId, boolean hidden, UserDetailsImpl user) {
+        Menu menu = menuRepository.findByIdAndDeletedAtIsNull(menuId)
+                .orElseThrow(() -> new CustomException(ErrorCode.MENU_NOT_FOUND));
+
+        validateStoreAccess(menu.getStoreId(), user);
+
+        if (hidden) {
+            menu.hide();
+        } else {
+            menu.show();
+        }
+        return MenuResponse.from(menu);   // 변경감지로 flush 되므로 save 불필요
     }
 
     /**
@@ -156,14 +196,24 @@ public class MenuService {
             throw new CustomException(ErrorCode.ALREADY_DELETED_MENU);
         }
 
+        UUID storeId = menu.getStoreId();
+
         validateStoreAccess(menu.getStoreId(), user);
-        optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)
-                .forEach(group -> {
-                    optionRepository.findAllByOptionGroupIdAndDeletedAtIsNull(group.getId())
-                            .forEach(option -> option.softDelete(user.userId()));
-                    group.softDelete(user.userId());
-                });
+
+        // 하위 옵션은 그룹 ID 목록으로 한 번에 조회해 삭제한다.
+        List<MenuOptionGroup> groups = optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id);
+        if (!groups.isEmpty()) {
+            List<UUID> groupIds = groups.stream().map(MenuOptionGroup::getId).toList();
+            optionRepository.findAllByOptionGroupIdInAndDeletedAtIsNull(groupIds)
+                    .forEach(option -> option.softDelete(user.userId()));
+            groups.forEach(group -> group.softDelete(user.userId()));
+        }
+
         menu.softDelete(user.userId());
+
+        //공개된 메뉴가 없다면 가게를 preparing 상태로 되돌린다.
+        ownerStoreService.refreshOperationStatusByMenus(storeId);
+
         return MenuDeleteResponse.from(menu);
     }
 

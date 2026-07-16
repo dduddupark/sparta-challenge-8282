@@ -1,8 +1,11 @@
 package com.sparta.spartachallenge8282.store.presentation.dto.response;
 
+import com.sparta.spartachallenge8282.menu.domain.PreviewMenuProjection;
+import com.sparta.spartachallenge8282.menu.presentation.dto.response.StorePreviewMenuResponse;
 import com.sparta.spartachallenge8282.store.domain.Store;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public record UserStoreListResponse(
@@ -11,7 +14,10 @@ public record UserStoreListResponse(
         String storeName,
         String storeImage,
 
+        UUID categoryId,
         String categoryName,
+        UUID regionId,
+        String regionName,
 
         BigDecimal storeRating,
         Integer reviewCount,
@@ -19,16 +25,27 @@ public record UserStoreListResponse(
         Integer deliveryFee,
         Integer minOrderPrice,
 
-        boolean isOpen
+        boolean isOpen,
+
+        List<StorePreviewMenuResponse> menus
 ) {
-    public static UserStoreListResponse from(Store store) {
+    public static UserStoreListResponse from(Store store, List<PreviewMenuProjection> menus) {
+
+        List<StorePreviewMenuResponse> previewMenus =
+                menus.stream()
+                        .map(StorePreviewMenuResponse::from)
+                        .toList();
+
         return new UserStoreListResponse(
                 store.getId(),
 
                 store.getStoreName(),
                 store.getStoreImage(),
 
+                store.getCategory().getId(),
                 store.getCategory().getName(),
+                store.getRegion().getId(),
+                store.getRegion().getName(),
 
                 store.getStoreRating(),
                 store.getReviewCount(),
@@ -36,7 +53,11 @@ public record UserStoreListResponse(
                 store.getDeliveryFee(),
                 store.getMinOrderPrice(),
 
-                store.isOpen()
+                store.isOpen(),
+
+                previewMenus
+
+
         );
     }
 }

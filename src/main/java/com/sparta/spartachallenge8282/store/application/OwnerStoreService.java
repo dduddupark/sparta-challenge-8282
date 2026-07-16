@@ -37,8 +37,23 @@ public class OwnerStoreService {
      * 본인 가게 목록 조회
      */
     @Transactional(readOnly = true)
-    public PageResponse<OwnerStoreListResponse> getMyStores(UserDetailsImpl userDetails, Pageable pageable) {
-        Page<Store> stores = storeRepository.findAllByOwnerIdAndDeletedAtIsNull(userDetails.userId(), pageable);
+    public PageResponse<OwnerStoreListResponse> getMyStores(
+            UserDetailsImpl userDetails,
+            Pageable pageable,
+            StoreOperationStatus operationStatus
+            ) {
+
+        Page<Store> stores;
+        if(operationStatus == null){
+            stores = storeRepository.findAllByOwner_IdAndDeletedAtIsNull(userDetails.userId(), pageable);
+        }else{
+            stores = storeRepository.findAllByOwner_IdAndOperationStatusAndDeletedAtIsNull
+                    (
+                            userDetails.userId()
+                            ,operationStatus
+                            ,pageable
+                    );
+        }
         return PageResponse.from(stores.map(OwnerStoreListResponse::from));
     }
 
@@ -68,17 +83,41 @@ public class OwnerStoreService {
                         userDetails.userId()
                 )
                 .orElseThrow(() ->
-                        new CustomException(ErrorCode.STORE_NOT_APPROVED)
+                        new CustomException(ErrorCode.STORE_NOT_FOUND)
                 );
         if (store.getOperationStatus() != StoreOperationStatus.PREPARING) {
             throw new CustomException(ErrorCode.STORE_ACTIVATION_NOT_ALLOWED);
         }
 
-        boolean hasMenu = menuRepository.existsByStoreIdAndDeletedAtIsNull(storeId);
-        if(!hasMenu) {
+        //삭제되거나 숨김처리되지 않은 공개된 메뉴를 가져온다.
+        boolean hasPublicMenu = menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId);
+        if(!hasPublicMenu) {
             throw new CustomException(ErrorCode.STORE_MENU_REQUIRED);
         }
+        //공개된 메뉴가 최소 1개이상 있어야한다.
         store.activate();
+    }
+
+    /**
+     * 공개 메뉴 존재 여부에 따라 가게 운영상태 갱신
+     * Active상태인 가게의 공개 메뉴가 하나도 남지 않았다면
+     * Prepare 상태로 변경하고 영업을 종료한다.
+     */
+    @Transactional
+    public void refreshOperationStatusByMenus(UUID storeId){
+        Store store = storeRepository
+                .findByIdAndDeletedAtIsNull(storeId)
+                .orElseThrow(() ->
+                        new CustomException(ErrorCode.STORE_NOT_FOUND)
+                );
+
+        boolean hasPublicMenu = menuRepository.existsByStoreIdAndDeletedAtIsNullAndIsHiddenFalse(storeId);
+
+        //운영 중인 가게가 공개된 메뉴가 하나도 없다면 준비상태로 되돌린다.
+        if(store.getOperationStatus() == StoreOperationStatus.ACTIVE && !hasPublicMenu) {
+            store.preparing();
+        }
+
     }
 
     /**

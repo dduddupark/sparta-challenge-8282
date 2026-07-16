@@ -16,6 +16,7 @@ import com.sparta.spartachallenge8282.optiongroup.domain.MenuOptionGroupReposito
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuCreateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.request.MenuUpdateRequest;
 import com.sparta.spartachallenge8282.menu.presentation.dto.response.MenuResponse;
+import com.sparta.spartachallenge8282.store.application.OwnerStoreService;
 import com.sparta.spartachallenge8282.store.domain.StoreRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,9 @@ class MenuServiceTest {
 
     @Mock
     private StoreRepository storeRepository;
+
+    @Mock
+    private OwnerStoreService ownerStoreService;
 
     @InjectMocks
     private MenuService menuService;
@@ -288,7 +292,7 @@ class MenuServiceTest {
         UUID storeId = UUID.randomUUID();
         Menu menu = sampleMenu(storeId);
         ReflectionTestUtils.setField(menu, "id", id);
-        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.of(menu));
 
         // when
         MenuResponse result = menuService.getMenu(id);
@@ -305,7 +309,7 @@ class MenuServiceTest {
     void 단건조회_없는id는_MENU_NOT_FOUND를_던진다() {
         // given
         UUID id = UUID.randomUUID();
-        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.empty());
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.empty());
 
         // when
         CustomException exception = assertThrows(CustomException.class,
@@ -313,6 +317,82 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
+    }
+
+    @Test
+    void 단건조회_숨김메뉴는_목록과_동일하게_MENU_NOT_FOUND를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        given(menuRepository.findByIdAndDeletedAtIsNullAndIsHiddenFalse(id)).willReturn(Optional.empty());
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.getMenu(id));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
+    }
+
+    // ── 숨김 상태 변경 ───────────────────────────────────────────────────────
+
+    @Test
+    void 메뉴노출상태변경_OWNER가_본인가게면_숨김과_노출을_변경한다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        givenStoreExists(storeId);
+        givenOwnerOwnsStore(storeId, owner.userId());
+
+        // when
+        MenuResponse hiddenResult = menuService.updateVisibility(id, true, owner);
+        MenuResponse shownResult = menuService.updateVisibility(id, false, owner);
+
+        // then
+        assertThat(hiddenResult.isHidden()).isTrue();
+        assertThat(shownResult.isHidden()).isFalse();
+    }
+
+    @Test
+    void 메뉴노출상태변경_OWNER가_본인가게가_아니면_NO_MENU_PERMISSION을_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        UserDetailsImpl owner = ownerUser(1L);
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+        givenStoreExists(storeId);
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.updateVisibility(id, true, owner));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_MENU_PERMISSION);
+    }
+
+    @Test
+    void 메뉴노출상태변경_CUSTOMER면_ACCESS_DENIED를_던진다() {
+        // given
+        UUID id = UUID.randomUUID();
+        UUID storeId = UUID.randomUUID();
+        Menu menu = sampleMenu(storeId);
+        ReflectionTestUtils.setField(menu, "id", id);
+
+        given(menuRepository.findByIdAndDeletedAtIsNull(id)).willReturn(Optional.of(menu));
+
+        // when
+        CustomException exception = assertThrows(CustomException.class,
+                () -> menuService.updateVisibility(id, true, customerUser()));
+
+        // then
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ACCESS_DENIED);
     }
 
     // ── 수정 ────────────────────────────────────────────────────────────────
@@ -531,6 +611,7 @@ class MenuServiceTest {
         assertThat(menu.getDeletedAt()).isEqualTo(result.deletedAt());
         assertThat(result.menuId()).isEqualTo(id);
         assertThat(menu.getDeletedBy()).isEqualTo(userId);
+        verify(ownerStoreService).refreshOperationStatusByMenus(storeId);
     }
 
     @Test
@@ -550,7 +631,7 @@ class MenuServiceTest {
         given(menuRepository.findById(id)).willReturn(Optional.of(menu));
         givenStoreExists(storeId);
         given(optionGroupRepository.findAllByMenuIdAndDeletedAtIsNull(id)).willReturn(List.of(group));
-        given(optionRepository.findAllByOptionGroupIdAndDeletedAtIsNull(group.getId())).willReturn(List.of(option));
+        given(optionRepository.findAllByOptionGroupIdInAndDeletedAtIsNull(List.of(group.getId()))).willReturn(List.of(option));
 
         // when
         menuService.deleteMenu(id, user);
@@ -561,6 +642,7 @@ class MenuServiceTest {
         assertThat(option.isDeleted()).isTrue();
         assertThat(group.getDeletedBy()).isEqualTo(userId);
         assertThat(option.getDeletedBy()).isEqualTo(userId);
+        verify(ownerStoreService).refreshOperationStatusByMenus(storeId);
     }
 
     @Test
@@ -575,6 +657,7 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MENU_NOT_FOUND);
+        verifyNoInteractions(ownerStoreService);
     }
 
     @Test
@@ -593,6 +676,7 @@ class MenuServiceTest {
 
         // then
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ALREADY_DELETED_MENU);
+        verifyNoInteractions(ownerStoreService);
     }
 
     // ── 목록 조회 ──────────────────────────────────────────────────────────────
@@ -691,5 +775,6 @@ class MenuServiceTest {
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NO_MENU_PERMISSION);
         assertThat(menu.isDeleted()).isFalse();
         verifyNoInteractions(optionGroupRepository, optionRepository);
+        verifyNoInteractions(ownerStoreService);
     }
 }
