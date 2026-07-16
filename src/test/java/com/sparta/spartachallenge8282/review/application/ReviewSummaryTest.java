@@ -1,5 +1,6 @@
 package com.sparta.spartachallenge8282.review.application;
 
+import com.sparta.spartachallenge8282.ai_history.infrastructure.GeminiClient;
 import com.sparta.spartachallenge8282.order.domain.Order;
 import com.sparta.spartachallenge8282.order.domain.OrderStatus;
 import com.sparta.spartachallenge8282.order.domain.OrderRepository;
@@ -23,10 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class ReviewSummaryTest {
 
@@ -35,7 +33,7 @@ class ReviewSummaryTest {
     private UserRepository userRepository;
     private StoreRepository storeRepository;
     private ReviewReplyRepository reviewReplyRepository;
-
+    private GeminiClient geminiClient;
     private ReviewService reviewService;
 
     private Long userId;
@@ -55,13 +53,14 @@ class ReviewSummaryTest {
         userRepository = mock(UserRepository.class);
         storeRepository = mock(StoreRepository.class);
         reviewReplyRepository = mock(ReviewReplyRepository.class);
-
+        geminiClient = mock(GeminiClient.class);
         reviewService = new ReviewService(
                 reviewRepository,
                 orderRepository,
                 userRepository,
                 storeRepository,
-                reviewReplyRepository
+                reviewReplyRepository,
+                geminiClient
         );
 
         userId = 1L;

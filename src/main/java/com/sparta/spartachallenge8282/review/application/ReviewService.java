@@ -1,5 +1,6 @@
 package com.sparta.spartachallenge8282.review.application;
 
+import com.sparta.spartachallenge8282.ai_history.infrastructure.GeminiClient;
 import com.sparta.spartachallenge8282.global.exception.CustomException;
 import com.sparta.spartachallenge8282.global.exception.ErrorCode;
 import com.sparta.spartachallenge8282.order.domain.Order;
@@ -12,6 +13,9 @@ import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewRes
 import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSliceResponseDto;
 import com.sparta.spartachallenge8282.review.domain.Review;
 import com.sparta.spartachallenge8282.review.domain.ReviewRepository;
+import com.sparta.spartachallenge8282.review.presentation.dto.response.ReviewSummaryResponseDto;
+import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
+import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
 import com.sparta.spartachallenge8282.review_reply.domain.ReviewReplyRepository;
 import com.sparta.spartachallenge8282.review_reply.presentation.dto.response.ReviewReplyResponseDto;
 import com.sparta.spartachallenge8282.store.domain.Store;
@@ -20,6 +24,8 @@ import com.sparta.spartachallenge8282.user.domain.User;
 import com.sparta.spartachallenge8282.user.domain.UserRepository;
 import com.sparta.spartachallenge8282.user.domain.UserRole;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -44,6 +50,7 @@ import java.util.stream.Collectors;
  * 삭제는 본인 또는 MANAGER/MASTER 권한을 가진 경우에도 가능하다.
  */
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
@@ -53,6 +60,7 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
     private final ReviewReplyRepository reviewReplyRepository;
+    private final GeminiClient geminiClient;
 
     @Transactional
     public ReviewResultResponseDto createReview(ReviewCreateRequestDto requestDto, Long userId) {
@@ -177,7 +185,43 @@ public class ReviewService {
                 .setScale(1, RoundingMode.HALF_EVEN);
 
         store.updateReviewSummary(rating, Math.toIntExact(reviewCount));
-
-
     }
+
+
+    public ReviewSummaryResponseDto summarizeReviews(UUID storeId) {
+
+        if (!storeRepository.existsById(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
+
+        List<String> contents = reviewRepository.findRecentReviewContents(
+                storeId, PageRequest.of(0, 30));
+
+        if (contents.isEmpty()) {
+            throw new CustomException(ErrorCode.NO_REVIEWS_TO_SUMMARIZE);
+        }
+
+        String prompt = buildSummaryPrompt(contents);
+        String summary;
+
+        long startTime = System.currentTimeMillis();
+        try {
+            summary = geminiClient.generate(prompt);
+            log.info("리뷰 요약 생성 성공 - storeId: {}, 리뷰 수: {}, elapsed: {}ms",
+                    storeId, contents.size(), System.currentTimeMillis() - startTime);
+        } catch (Exception e) {
+            log.error("리뷰 요약 생성 실패 - storeId: {}, 리뷰 수: {}, elapsed: {}ms, 메시지: {}",
+                    storeId, contents.size(), System.currentTimeMillis() - startTime, e.getMessage());
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
+
+        return ReviewSummaryResponseDto.from(summary);
+    }
+
+    private String buildSummaryPrompt(List<String> contents) {
+        String joined = String.join("\n- ", contents);
+        return "다음은 한 가게에 대한 고객 리뷰 목록입니다:\n- " + joined
+                + "\n\n이 리뷰들을 바탕으로 이 가게의 특징과 전반적인 평가를 100자 이내로 요약해줘.";
+    }
+
 }

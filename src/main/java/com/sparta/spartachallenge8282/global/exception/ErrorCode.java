@@ -136,6 +136,8 @@ public enum ErrorCode {
     REVIEW_ALREADY_EXISTS(80004, HttpStatus.CONFLICT, "이미 리뷰가 작성된 주문입니다."),
     NOT_REVIEW_OWNER(80005, HttpStatus.FORBIDDEN, "본인이 작성한 리뷰만 수정/삭제할 수 있습니다."),
     REVIEW_NOT_FOUND(80006, HttpStatus.NOT_FOUND, "존재하지 않는 리뷰입니다."),
+    NO_REVIEWS_TO_SUMMARIZE(80007, HttpStatus.BAD_REQUEST, "요약할 리뷰가 없습니다."),
+
 
     // ── REVIEW REPLY (80101 ~ 80199) ──────────────────────────────────────
     REPLY_TARGET_REVIEW_NOT_FOUND(80101, HttpStatus.NOT_FOUND, "답글을 작성할 리뷰가 존재하지 않습니다."),
